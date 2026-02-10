@@ -1,3 +1,5 @@
+import { useLanguage } from "@/i18n/LanguageContext";
+
 const drafts = [
   { company: "Acme Corp", contact: "Sarah Chen", subject: "Partnership opportunity with Acme Corp", confidence: 94, status: "Approved" },
   { company: "Globex Inc", contact: "John Smith", subject: "Streamline your outbound with AI", confidence: 72, status: "Needs review" },
@@ -13,22 +15,24 @@ const statusStyles: Record<string, string> = {
 };
 
 const DraftsPage = () => {
+  const { t } = useLanguage();
+
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold text-foreground">Drafts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">AI-generated email drafts for your leads.</p>
+        <h1 className="font-heading text-2xl font-bold text-foreground">{t("drafts.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("drafts.desc")}</p>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-accent/50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contact</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Subject</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Confidence</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("drafts.col.company")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("drafts.col.contact")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("drafts.col.subject")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("drafts.col.confidence")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("drafts.col.status")}</th>
             </tr>
           </thead>
           <tbody>

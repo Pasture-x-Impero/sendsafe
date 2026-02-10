@@ -1,7 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/landing/Hero";
 import HowItWorks from "@/components/landing/HowItWorks";
-import WhyDraftGuard from "@/components/landing/WhyDraftGuard";
+import WhySendSafe from "@/components/landing/WhySendSafe";
 import Pricing from "@/components/landing/Pricing";
 import Footer from "@/components/landing/Footer";
 
@@ -12,7 +12,7 @@ const Index = () => {
       <main>
         <Hero />
         <HowItWorks />
-        <WhyDraftGuard />
+        <WhySendSafe />
         <Pricing />
       </main>
       <Footer />
