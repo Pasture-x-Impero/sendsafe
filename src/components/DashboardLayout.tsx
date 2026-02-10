@@ -1,22 +1,25 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { Shield, Users, FileText, ShieldCheck, Send, Settings } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
 
 const navItems = [
-  { to: "/dashboard/leads", label: "Leads", icon: Users },
-  { to: "/dashboard/drafts", label: "Drafts", icon: FileText },
-  { to: "/dashboard/approval", label: "Approval Queue", icon: ShieldCheck },
-  { to: "/dashboard/sent", label: "Sent", icon: Send },
-  { to: "/dashboard/settings", label: "Settings", icon: Settings },
+  { to: "/dashboard/leads", labelKey: "sidebar.leads" as TranslationKey, icon: Users },
+  { to: "/dashboard/drafts", labelKey: "sidebar.drafts" as TranslationKey, icon: FileText },
+  { to: "/dashboard/approval", labelKey: "sidebar.approval" as TranslationKey, icon: ShieldCheck },
+  { to: "/dashboard/sent", labelKey: "sidebar.sent" as TranslationKey, icon: Send },
+  { to: "/dashboard/settings", labelKey: "sidebar.settings" as TranslationKey, icon: Settings },
 ];
 
 const DashboardLayout = () => {
+  const { language, setLanguage, t } = useLanguage();
+
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-40 flex h-full w-60 flex-col border-r border-border bg-card">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
           <Shield className="h-6 w-6 text-primary" />
-          <span className="font-heading text-lg font-bold text-foreground">DraftGuard</span>
+          <span className="font-heading text-lg font-bold text-foreground">SendSafe</span>
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {navItems.map((item) => (
@@ -32,13 +35,28 @@ const DashboardLayout = () => {
               }
             >
               <item.icon className="h-4 w-4" />
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
+        <div className="border-t border-border p-3">
+          <div className="flex items-center justify-center rounded-lg border border-border bg-accent text-sm font-medium">
+            <button
+              onClick={() => setLanguage("en")}
+              className={`flex-1 rounded-l-lg px-3 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              EN
+            </button>
+            <button
+              onClick={() => setLanguage("no")}
+              className={`flex-1 rounded-r-lg px-3 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              NO
+            </button>
+          </div>
+        </div>
       </aside>
 
-      {/* Main content */}
       <main className="ml-60 flex-1 p-8">
         <Outlet />
       </main>

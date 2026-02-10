@@ -1,4 +1,5 @@
 import { CheckCircle } from "lucide-react";
+import { useLanguage } from "@/i18n/LanguageContext";
 
 const sentEmails = [
   { company: "Acme Corp", contact: "Sarah Chen", subject: "Partnership opportunity with Acme Corp", sentAt: "2 hours ago", confidence: 94 },
@@ -7,22 +8,24 @@ const sentEmails = [
 ];
 
 const SentPage = () => {
+  const { t } = useLanguage();
+
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold text-foreground">Sent</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Emails that passed review and were sent.</p>
+        <h1 className="font-heading text-2xl font-bold text-foreground">{t("sent.title")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("sent.desc")}</p>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border">
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-accent/50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Company</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contact</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Subject</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Confidence</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sent</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.company")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.contact")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.subject")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.confidence")}</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.sent")}</th>
             </tr>
           </thead>
           <tbody>

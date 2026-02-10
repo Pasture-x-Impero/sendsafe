@@ -1,38 +1,42 @@
 import { motion } from "framer-motion";
 import { Check, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const plans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "",
-    description: "Try DraftGuard risk-free",
-    features: ["50 AI generations", "10 sends", "Manual approval"],
-    cta: "Start free",
-    highlighted: false,
-  },
-  {
-    name: "Starter",
-    price: "$29",
-    period: "/ month",
-    description: "For growing outbound teams",
-    features: ["500 AI credits", "300 sends", "Auto-send above confidence threshold", "Email support"],
-    cta: "Upgrade to Starter",
-    highlighted: true,
-  },
-  {
-    name: "Pro",
-    price: "$79",
-    period: "/ month",
-    description: "For teams at scale",
-    features: ["2,000 AI credits", "High send limits", "Team access", "Custom prompt presets"],
-    cta: "Go Pro",
-    highlighted: false,
-  },
-];
+import { useLanguage } from "@/i18n/LanguageContext";
+import type { TranslationKey } from "@/i18n/translations";
 
 const Pricing = () => {
+  const { t } = useLanguage();
+
+  const plans = [
+    {
+      nameKey: "pricing.free.name" as TranslationKey,
+      price: "$0",
+      period: "",
+      descKey: "pricing.free.desc" as TranslationKey,
+      featureKeys: ["pricing.feature.50gen", "pricing.feature.10sends", "pricing.feature.manual"] as TranslationKey[],
+      ctaKey: "pricing.free.cta" as TranslationKey,
+      highlighted: false,
+    },
+    {
+      nameKey: "pricing.starter.name" as TranslationKey,
+      price: "$29",
+      period: "/ month",
+      descKey: "pricing.starter.desc" as TranslationKey,
+      featureKeys: ["pricing.feature.500credits", "pricing.feature.300sends", "pricing.feature.autosend", "pricing.feature.emailSupport"] as TranslationKey[],
+      ctaKey: "pricing.starter.cta" as TranslationKey,
+      highlighted: true,
+    },
+    {
+      nameKey: "pricing.pro.name" as TranslationKey,
+      price: "$79",
+      period: "/ month",
+      descKey: "pricing.pro.desc" as TranslationKey,
+      featureKeys: ["pricing.feature.2000credits", "pricing.feature.highSends", "pricing.feature.team", "pricing.feature.custom"] as TranslationKey[],
+      ctaKey: "pricing.pro.cta" as TranslationKey,
+      highlighted: false,
+    },
+  ];
+
   return (
     <section id="pricing" className="py-20 md:py-28">
       <div className="container mx-auto px-6">
@@ -43,17 +47,17 @@ const Pricing = () => {
           className="mx-auto mb-16 max-w-2xl text-center"
         >
           <h2 className="font-heading text-3xl font-bold text-foreground md:text-4xl">
-            Simple, transparent pricing
+            {t("pricing.title")}
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Pay for confidence at scale, not just email volume.
+            {t("pricing.subtitle")}
           </p>
         </motion.div>
 
         <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
           {plans.map((plan, i) => (
             <motion.div
-              key={plan.name}
+              key={i}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
@@ -66,20 +70,20 @@ const Pricing = () => {
             >
               {plan.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                  Most popular
+                  {t("pricing.mostPopular")}
                 </span>
               )}
-              <h3 className="font-heading text-lg font-semibold text-foreground">{plan.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+              <h3 className="font-heading text-lg font-semibold text-foreground">{t(plan.nameKey)}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t(plan.descKey)}</p>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="font-heading text-4xl font-bold text-foreground">{plan.price}</span>
                 {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
               </div>
               <ul className="mt-6 space-y-3">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm text-muted-foreground">
+                {plan.featureKeys.map((fk) => (
+                  <li key={fk} className="flex items-start gap-2 text-sm text-muted-foreground">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                    {feature}
+                    {t(fk)}
                   </li>
                 ))}
               </ul>
@@ -91,7 +95,7 @@ const Pricing = () => {
                     : "border border-border bg-accent text-foreground hover:bg-accent/80"
                 }`}
               >
-                {plan.cta}
+                {t(plan.ctaKey)}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </motion.div>
