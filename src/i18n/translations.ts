@@ -5,6 +5,20 @@ export const translations = {
     "nav.why": "Why SendSafe",
     "nav.pricing": "Pricing",
     "nav.getStarted": "Get started",
+    "nav.dashboard": "Dashboard",
+
+    // Auth
+    "auth.login": "Log in",
+    "auth.loginDesc": "Sign in to your SendSafe account.",
+    "auth.signUp": "Sign up",
+    "auth.signUpDesc": "Create your SendSafe account.",
+    "auth.logout": "Log out",
+    "auth.email": "Email",
+    "auth.password": "Password",
+    "auth.signingIn": "Signing in…",
+    "auth.creatingAccount": "Creating account…",
+    "auth.noAccount": "Don't have an account?",
+    "auth.hasAccount": "Already have an account?",
 
     // Hero
     "hero.badge": "AI-powered email safety",
@@ -135,10 +149,16 @@ export const translations = {
     "drafts.col.subject": "Subject",
     "drafts.col.confidence": "Confidence",
     "drafts.col.status": "Status",
+    "drafts.empty": "No drafts yet. Import leads and generate emails to see them here.",
+    "drafts.status.approved": "Approved",
+    "drafts.status.needs_review": "Needs review",
+    "drafts.status.draft": "Draft",
+    "drafts.status.sent": "Sent",
 
     // Approval page
     "approval.title": "Approval Queue",
     "approval.desc": "Review and approve emails before sending.",
+    "approval.empty": "No emails to review. Generate drafts from your leads to get started.",
     "approval.emailPreview": "Email Preview",
     "approval.aiReview": "AI Review",
     "approval.approved": "Approved",
@@ -161,6 +181,7 @@ export const translations = {
     "sent.col.subject": "Subject",
     "sent.col.confidence": "Confidence",
     "sent.col.sent": "Sent",
+    "sent.empty": "No emails sent yet. Approve emails from the approval queue to see them here.",
 
     // Settings page
     "settings.title": "Settings",
@@ -178,6 +199,20 @@ export const translations = {
     "nav.why": "Hvorfor SendSafe",
     "nav.pricing": "Priser",
     "nav.getStarted": "Kom i gang",
+    "nav.dashboard": "Dashbord",
+
+    // Auth
+    "auth.login": "Logg inn",
+    "auth.loginDesc": "Logg inn på din SendSafe-konto.",
+    "auth.signUp": "Registrer deg",
+    "auth.signUpDesc": "Opprett din SendSafe-konto.",
+    "auth.logout": "Logg ut",
+    "auth.email": "E-post",
+    "auth.password": "Passord",
+    "auth.signingIn": "Logger inn…",
+    "auth.creatingAccount": "Oppretter konto…",
+    "auth.noAccount": "Har du ikke en konto?",
+    "auth.hasAccount": "Har du allerede en konto?",
 
     // Hero
     "hero.badge": "AI-drevet e-postsikkerhet",
@@ -308,10 +343,16 @@ export const translations = {
     "drafts.col.subject": "Emne",
     "drafts.col.confidence": "Tillit",
     "drafts.col.status": "Status",
+    "drafts.empty": "Ingen utkast ennå. Importer kontakter og generer e-poster for å se dem her.",
+    "drafts.status.approved": "Godkjent",
+    "drafts.status.needs_review": "Trenger gjennomgang",
+    "drafts.status.draft": "Utkast",
+    "drafts.status.sent": "Sendt",
 
     // Approval page
     "approval.title": "Godkjenningskø",
     "approval.desc": "Gjennomgå og godkjenn e-poster før sending.",
+    "approval.empty": "Ingen e-poster å gjennomgå. Generer utkast fra kontaktene dine for å komme i gang.",
     "approval.emailPreview": "E-postforhåndsvisning",
     "approval.aiReview": "AI-gjennomgang",
     "approval.approved": "Godkjent",
@@ -334,6 +375,7 @@ export const translations = {
     "sent.col.subject": "Emne",
     "sent.col.confidence": "Tillit",
     "sent.col.sent": "Sendt",
+    "sent.empty": "Ingen e-poster sendt ennå. Godkjenn e-poster fra godkjenningskøen for å se dem her.",
 
     // Settings page
     "settings.title": "Innstillinger",

@@ -1,14 +1,11 @@
 import { CheckCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/i18n/LanguageContext";
-
-const sentEmails = [
-  { company: "Acme Corp", contact: "Sarah Chen", subject: "Partnership opportunity with Acme Corp", sentAt: "2 hours ago", confidence: 94 },
-  { company: "Wayne Enterprises", contact: "Bruce Wayne", subject: "Security solutions for Wayne Enterprises", sentAt: "1 day ago", confidence: 91 },
-  { company: "Pied Piper", contact: "Richard Hendricks", subject: "AI communication tools for Pied Piper", sentAt: "2 days ago", confidence: 87 },
-];
+import { useEmails } from "@/hooks/use-emails";
 
 const SentPage = () => {
   const { t } = useLanguage();
+  const { data: emails = [], isLoading } = useEmails("sent");
 
   return (
     <div>
@@ -17,34 +14,48 @@ const SentPage = () => {
         <p className="mt-1 text-sm text-muted-foreground">{t("sent.desc")}</p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border bg-accent/50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.company")}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.contact")}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.subject")}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.confidence")}</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.sent")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sentEmails.map((email, i) => (
-              <tr key={i} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 text-sm font-medium text-foreground">{email.company}</td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{email.contact}</td>
-                <td className="px-4 py-3 text-sm text-foreground">{email.subject}</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 text-sm text-success">
-                    <CheckCircle className="h-3.5 w-3.5" /> {email.confidence}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-muted-foreground">{email.sentAt}</td>
+      {isLoading ? (
+        <div className="flex justify-center py-12">
+          <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      ) : emails.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+          {t("sent.empty")}
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-border">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-accent/50">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.company")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.contact")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.subject")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.confidence")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.sent")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {emails.map((email) => (
+                <tr key={email.id} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">{email.company}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{email.contact_name}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{email.subject}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1 text-sm text-success">
+                      <CheckCircle className="h-3.5 w-3.5" /> {email.confidence}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {email.sent_at
+                      ? formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })
+                      : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

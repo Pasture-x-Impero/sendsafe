@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, Users, FileText, ShieldCheck, Send, Settings } from "lucide-react";
+import { Shield, Users, FileText, ShieldCheck, Send, Settings, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import type { TranslationKey } from "@/i18n/translations";
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
 
 const DashboardLayout = () => {
   const { language, setLanguage, t } = useLanguage();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -39,7 +41,19 @@ const DashboardLayout = () => {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-3 space-y-3">
+          {user && (
+            <div className="flex items-center justify-between px-1">
+              <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+              <button
+                onClick={signOut}
+                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+                title={t("auth.logout")}
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-center rounded-lg border border-border bg-accent text-sm font-medium">
             <button
               onClick={() => setLanguage("en")}

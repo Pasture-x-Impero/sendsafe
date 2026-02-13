@@ -12,7 +12,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const stored = localStorage.getItem("sendsafe-lang");
-    return (stored === "no" ? "no" : "en") as Language;
+    return (stored === "en" ? "en" : "no") as Language;
   });
 
   const setLanguage = useCallback((lang: Language) => {

@@ -12,9 +12,158 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  public: {
+  graphql_public: {
     Tables: {
       [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  public: {
+    Tables: {
+      emails: {
+        Row: {
+          approved: boolean
+          body: string
+          company: string
+          confidence: number
+          contact_email: string
+          contact_name: string
+          created_at: string
+          id: string
+          issues: string[]
+          lead_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          suggestions: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean
+          body: string
+          company: string
+          confidence?: number
+          contact_email: string
+          contact_name: string
+          created_at?: string
+          id?: string
+          issues?: string[]
+          lead_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          suggestions?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved?: boolean
+          body?: string
+          company?: string
+          confidence?: number
+          contact_email?: string
+          contact_name?: string
+          created_at?: string
+          id?: string
+          issues?: string[]
+          lead_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          suggestions?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          company: string
+          contact_email: string
+          contact_name: string | null
+          created_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          company: string
+          contact_email: string
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          company?: string
+          contact_email?: string
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          autosend_threshold: number
+          created_at: string
+          goal: string
+          id: string
+          onboarding_completed: boolean
+          tone: string
+          updated_at: string
+        }
+        Insert: {
+          autosend_threshold?: number
+          created_at?: string
+          goal?: string
+          id: string
+          onboarding_completed?: boolean
+          tone?: string
+          updated_at?: string
+        }
+        Update: {
+          autosend_threshold?: number
+          created_at?: string
+          goal?: string
+          id?: string
+          onboarding_completed?: boolean
+          tone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -149,6 +298,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

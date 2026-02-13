@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, ArrowRight, ArrowLeft, Upload, Briefcase, Handshake, Users, MessageSquare, Sparkles } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import type { TranslationKey } from "@/i18n/translations";
 
 const steps = [
@@ -13,17 +14,17 @@ const steps = [
   { id: "success" },
 ];
 
-const goalItems = [
-  { labelKey: "onboarding.goal.sales" as TranslationKey, icon: Briefcase },
-  { labelKey: "onboarding.goal.partnerships" as TranslationKey, icon: Handshake },
-  { labelKey: "onboarding.goal.recruiting" as TranslationKey, icon: Users },
-  { labelKey: "onboarding.goal.other" as TranslationKey, icon: MessageSquare },
+const goalItems: { value: string; labelKey: TranslationKey; icon: typeof Briefcase }[] = [
+  { value: "sales", labelKey: "onboarding.goal.sales", icon: Briefcase },
+  { value: "partnerships", labelKey: "onboarding.goal.partnerships", icon: Handshake },
+  { value: "recruiting", labelKey: "onboarding.goal.recruiting", icon: Users },
+  { value: "other", labelKey: "onboarding.goal.other", icon: MessageSquare },
 ];
 
-const toneItems = [
-  { labelKey: "onboarding.tone.professional" as TranslationKey, descKey: "onboarding.tone.professionalDesc" as TranslationKey },
-  { labelKey: "onboarding.tone.friendly" as TranslationKey, descKey: "onboarding.tone.friendlyDesc" as TranslationKey },
-  { labelKey: "onboarding.tone.direct" as TranslationKey, descKey: "onboarding.tone.directDesc" as TranslationKey },
+const toneItems: { value: string; labelKey: TranslationKey; descKey: TranslationKey }[] = [
+  { value: "professional", labelKey: "onboarding.tone.professional", descKey: "onboarding.tone.professionalDesc" },
+  { value: "friendly", labelKey: "onboarding.tone.friendly", descKey: "onboarding.tone.friendlyDesc" },
+  { value: "direct", labelKey: "onboarding.tone.direct", descKey: "onboarding.tone.directDesc" },
 ];
 
 const Onboarding = () => {
@@ -32,9 +33,35 @@ const Onboarding = () => {
   const [tone, setTone] = useState("");
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { data: profile, isLoading } = useProfile();
+  const updateProfile = useUpdateProfile();
+
+  // Redirect to dashboard if onboarding already completed
+  useEffect(() => {
+    if (!isLoading && profile?.onboarding_completed) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isLoading, profile, navigate]);
 
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const handleComplete = async () => {
+    await updateProfile.mutateAsync({
+      goal: goal as "sales" | "partnerships" | "recruiting" | "other",
+      tone: tone as "professional" | "friendly" | "direct",
+      onboarding_completed: true,
+    });
+    navigate("/dashboard/approval");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -80,10 +107,10 @@ const Onboarding = () => {
                 <div className="mt-6 grid grid-cols-2 gap-3">
                   {goalItems.map((g) => (
                     <button
-                      key={g.labelKey}
-                      onClick={() => setGoal(g.labelKey)}
+                      key={g.value}
+                      onClick={() => setGoal(g.value)}
                       className={`flex items-center gap-3 rounded-xl border p-4 text-left text-sm font-medium transition-all ${
-                        goal === g.labelKey
+                        goal === g.value
                           ? "border-primary bg-primary/5 text-foreground"
                           : "border-border bg-card text-muted-foreground hover:border-primary/30"
                       }`}
@@ -115,10 +142,10 @@ const Onboarding = () => {
                 <div className="mt-6 space-y-3">
                   {toneItems.map((ti) => (
                     <button
-                      key={ti.labelKey}
-                      onClick={() => setTone(ti.labelKey)}
+                      key={ti.value}
+                      onClick={() => setTone(ti.value)}
                       className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-all ${
-                        tone === ti.labelKey
+                        tone === ti.value
                           ? "border-primary bg-primary/5"
                           : "border-border bg-card hover:border-primary/30"
                       }`}
@@ -128,7 +155,7 @@ const Onboarding = () => {
                         <div className="text-xs text-muted-foreground">{t(ti.descKey)}</div>
                       </div>
                       <div className={`h-4 w-4 rounded-full border-2 ${
-                        tone === ti.labelKey ? "border-primary bg-primary" : "border-border"
+                        tone === ti.value ? "border-primary bg-primary" : "border-border"
                       }`} />
                     </button>
                   ))}
@@ -182,8 +209,9 @@ const Onboarding = () => {
                 <h1 className="font-heading text-3xl font-bold text-foreground">{t("onboarding.successTitle")}</h1>
                 <p className="mt-3 text-muted-foreground">{t("onboarding.successDesc")}</p>
                 <button
-                  onClick={() => navigate("/dashboard/approval")}
-                  className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  onClick={handleComplete}
+                  disabled={updateProfile.isPending}
+                  className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {t("onboarding.goToApproval")}
                   <ArrowRight className="h-4 w-4" />
