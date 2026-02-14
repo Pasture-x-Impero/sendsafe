@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Shield, ArrowRight, ArrowLeft, Upload, Briefcase, Handshake, Users, MessageSquare, Sparkles } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import type { TranslationKey } from "@/i18n/translations";
 
@@ -10,6 +11,7 @@ const steps = [
   { id: "welcome" },
   { id: "goal" },
   { id: "tone" },
+  { id: "signup" },
   { id: "upload" },
   { id: "success" },
 ];
@@ -31,22 +33,48 @@ const Onboarding = () => {
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState("");
   const [tone, setTone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [signingUp, setSigningUp] = useState(false);
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user, signUp } = useAuth();
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
 
-  // Redirect to dashboard if onboarding already completed
+  // If already logged in and onboarding completed, go to dashboard
   useEffect(() => {
-    if (!isLoading && profile?.onboarding_completed) {
+    if (!isLoading && user && profile?.onboarding_completed) {
       navigate("/dashboard", { replace: true });
     }
-  }, [isLoading, profile, navigate]);
+  }, [isLoading, user, profile, navigate]);
+
+  // If user is already logged in, skip the signup step
+  useEffect(() => {
+    if (user && step === 3) {
+      setStep(4);
+    }
+  }, [user, step]);
 
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    setSigningUp(true);
+    const { error } = await signUp(email, password);
+    setSigningUp(false);
+    if (error) {
+      setAuthError(error.message);
+    } else {
+      next();
+    }
+  };
+
   const handleComplete = async () => {
+    if (!user) return;
     await updateProfile.mutateAsync({
       goal: goal as "sales" | "partnerships" | "recruiting" | "other",
       tone: tone as "professional" | "friendly" | "direct",
@@ -54,14 +82,6 @@ const Onboarding = () => {
     });
     navigate("/dashboard/approval");
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -165,7 +185,13 @@ const Onboarding = () => {
                     <ArrowLeft className="h-4 w-4" /> {t("onboarding.back")}
                   </button>
                   <button
-                    onClick={next}
+                    onClick={() => {
+                      if (user) {
+                        setStep(4); // skip signup if already logged in
+                      } else {
+                        next();
+                      }
+                    }}
                     disabled={!tone}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                   >
@@ -175,7 +201,63 @@ const Onboarding = () => {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 3 && !user && (
+              <div>
+                <h2 className="font-heading text-2xl font-bold text-foreground">{t("onboarding.signupTitle")}</h2>
+                <p className="mt-2 text-muted-foreground">{t("onboarding.signupDesc")}</p>
+                <form onSubmit={handleSignUp} className="mt-6 space-y-4">
+                  {authError && (
+                    <div className="rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                      {authError}
+                    </div>
+                  )}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">{t("auth.email")}</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-foreground">{t("auth.password")}</label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between pt-4">
+                    <button type="button" onClick={back} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                      <ArrowLeft className="h-4 w-4" /> {t("onboarding.back")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={signingUp}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {signingUp ? t("auth.creatingAccount") : t("auth.signUp")}
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </form>
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                  {t("auth.hasAccount")}{" "}
+                  <Link to="/login" className="font-medium text-primary hover:underline">
+                    {t("auth.login")}
+                  </Link>
+                </p>
+              </div>
+            )}
+
+            {step === 4 && (
               <div>
                 <h2 className="font-heading text-2xl font-bold text-foreground">{t("onboarding.uploadTitle")}</h2>
                 <p className="mt-2 text-muted-foreground">{t("onboarding.uploadDesc")}</p>
@@ -188,7 +270,7 @@ const Onboarding = () => {
                   </button>
                 </div>
                 <div className="mt-8 flex items-center justify-between">
-                  <button onClick={back} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setStep(user ? 2 : 3)} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
                     <ArrowLeft className="h-4 w-4" /> {t("onboarding.back")}
                   </button>
                   <button
@@ -201,7 +283,7 @@ const Onboarding = () => {
               </div>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="text-center">
                 <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-success/10">
                   <Sparkles className="h-8 w-8 text-success" />
