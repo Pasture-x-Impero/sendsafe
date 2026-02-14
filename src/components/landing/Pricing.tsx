@@ -10,8 +10,8 @@ const Pricing = () => {
   const plans = [
     {
       nameKey: "pricing.free.name" as TranslationKey,
-      price: "$0",
-      period: "",
+      price: "0 kr",
+      hasPeriod: false,
       descKey: "pricing.free.desc" as TranslationKey,
       featureKeys: ["pricing.feature.50gen", "pricing.feature.10sends", "pricing.feature.manual"] as TranslationKey[],
       ctaKey: "pricing.free.cta" as TranslationKey,
@@ -19,8 +19,8 @@ const Pricing = () => {
     },
     {
       nameKey: "pricing.starter.name" as TranslationKey,
-      price: "$29",
-      period: "/ month",
+      price: "299 kr",
+      hasPeriod: true,
       descKey: "pricing.starter.desc" as TranslationKey,
       featureKeys: ["pricing.feature.500credits", "pricing.feature.300sends", "pricing.feature.autosend", "pricing.feature.emailSupport"] as TranslationKey[],
       ctaKey: "pricing.starter.cta" as TranslationKey,
@@ -28,8 +28,8 @@ const Pricing = () => {
     },
     {
       nameKey: "pricing.pro.name" as TranslationKey,
-      price: "$79",
-      period: "/ month",
+      price: "799 kr",
+      hasPeriod: true,
       descKey: "pricing.pro.desc" as TranslationKey,
       featureKeys: ["pricing.feature.2000credits", "pricing.feature.highSends", "pricing.feature.team", "pricing.feature.custom"] as TranslationKey[],
       ctaKey: "pricing.pro.cta" as TranslationKey,
@@ -77,7 +77,7 @@ const Pricing = () => {
               <p className="mt-1 text-sm text-muted-foreground">{t(plan.descKey)}</p>
               <div className="mt-4 flex items-baseline gap-1">
                 <span className="font-heading text-4xl font-bold text-foreground">{plan.price}</span>
-                {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                {plan.hasPeriod && <span className="text-sm text-muted-foreground">{t("pricing.period")}</span>}
               </div>
               <ul className="mt-6 space-y-3">
                 {plan.featureKeys.map((fk) => (

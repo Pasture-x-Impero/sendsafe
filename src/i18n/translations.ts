@@ -35,6 +35,13 @@ export const translations = {
     "hero.noHallucinations": "No hallucinated claims detected",
     "hero.personalizationVerified": "Personalization verified",
     "hero.toneProfessional": "Tone: Professional ✓",
+    "hero.emailSubject": "Re: Partnership opportunity with Acme Corp",
+    "hero.emailGreeting": "Hi Sarah,",
+    "hero.emailBody1": "I came across Acme Corp's recent expansion into cloud infrastructure and wanted to reach out about a potential collaboration.",
+    "hero.emailBody2": "We help companies like yours streamline their outbound communication with AI-verified messaging...",
+
+    // Pricing
+    "pricing.period": "/ month",
 
     // How It Works
     "how.title": "How it works",
@@ -229,6 +236,13 @@ export const translations = {
     "hero.noHallucinations": "Ingen hallusinerte påstander oppdaget",
     "hero.personalizationVerified": "Personalisering verifisert",
     "hero.toneProfessional": "Tone: Profesjonell ✓",
+    "hero.emailSubject": "Re: Samarbeidsmulighet med Acme Corp",
+    "hero.emailGreeting": "Hei Sarah,",
+    "hero.emailBody1": "Jeg la merke til Acme Corps nylige ekspansjon innen skyinfrastruktur og ønsket å ta kontakt angående et potensielt samarbeid.",
+    "hero.emailBody2": "Vi hjelper selskaper som ditt med å effektivisere utgående kommunikasjon med AI-verifisert meldingsutsending...",
+
+    // Pricing
+    "pricing.period": "/ mnd",
 
     // How It Works
     "how.title": "Slik fungerer det",

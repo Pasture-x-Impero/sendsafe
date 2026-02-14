@@ -64,12 +64,12 @@ const Hero = () => {
               <div className="border-b border-border p-6 md:border-b-0 md:border-r">
                 <div className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">{t("hero.emailPreview")}</div>
                 <div className="mb-2 font-heading text-sm font-semibold text-foreground">
-                  Re: Partnership opportunity with Acme Corp
+                  {t("hero.emailSubject")}
                 </div>
                 <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-                  <p>Hi Sarah,</p>
-                  <p>I came across Acme Corp's recent expansion into cloud infrastructure and wanted to reach out about a potential collaboration.</p>
-                  <p>We help companies like yours streamline their outbound communication with AI-verified messaging...</p>
+                  <p>{t("hero.emailGreeting")}</p>
+                  <p>{t("hero.emailBody1")}</p>
+                  <p>{t("hero.emailBody2")}</p>
                 </div>
               </div>
               <div className="p-6">

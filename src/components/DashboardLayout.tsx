@@ -56,16 +56,16 @@ const DashboardLayout = () => {
           )}
           <div className="flex items-center justify-center rounded-lg border border-border bg-accent text-sm font-medium">
             <button
-              onClick={() => setLanguage("en")}
-              className={`flex-1 rounded-l-lg px-3 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setLanguage("no")}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-l-lg px-3 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              EN
+              <span className="text-base leading-none">&#127475;&#127476;</span> NO
             </button>
             <button
-              onClick={() => setLanguage("no")}
-              className={`flex-1 rounded-r-lg px-3 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setLanguage("en")}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-r-lg px-3 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              NO
+              <span className="text-base leading-none">&#127468;&#127463;</span> EN
             </button>
           </div>
         </div>

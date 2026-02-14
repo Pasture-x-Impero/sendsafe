@@ -28,16 +28,16 @@ const Navbar = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center rounded-lg border border-border bg-card text-sm font-medium">
             <button
-              onClick={() => setLanguage("en")}
-              className={`rounded-l-lg px-2.5 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setLanguage("no")}
+              className={`flex items-center gap-1.5 rounded-l-lg px-2.5 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              EN
+              <span className="text-base leading-none">&#127475;&#127476;</span> NO
             </button>
             <button
-              onClick={() => setLanguage("no")}
-              className={`rounded-r-lg px-2.5 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setLanguage("en")}
+              className={`flex items-center gap-1.5 rounded-r-lg px-2.5 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              NO
+              <span className="text-base leading-none">&#127468;&#127463;</span> EN
             </button>
           </div>
           {user ? (
