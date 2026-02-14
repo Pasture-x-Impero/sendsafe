@@ -77,8 +77,8 @@ const Login = () => {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t("auth.noAccount")}{" "}
-          <Link to="/signup" className="font-medium text-primary hover:underline">
-            {t("auth.signUp")}
+          <Link to="/onboarding" className="font-medium text-primary hover:underline">
+            {t("nav.getStarted")}
           </Link>
         </p>
       </div>
