@@ -16,11 +16,11 @@ const Navbar = () => {
           <span className="font-heading text-xl font-bold text-foreground">SendSafe</span>
         </Link>
         <div className="hidden items-center gap-8 md:flex">
-          <a href="#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-            {t("nav.howItWorks")}
-          </a>
           <a href="#why" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
             {t("nav.why")}
+          </a>
+          <a href="#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            {t("nav.howItWorks")}
           </a>
           <a href="#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
             {t("nav.pricing")}
