@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Shield, ArrowRight, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { NorwayFlag, UKFlag } from "@/components/Flags";
 
 const Navbar = () => {
   const { language, setLanguage, t } = useLanguage();
@@ -31,13 +32,13 @@ const Navbar = () => {
               onClick={() => setLanguage("no")}
               className={`flex items-center gap-1.5 rounded-l-lg px-2.5 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <span className="text-base leading-none">&#127475;&#127476;</span> NO
+              <NorwayFlag /> NO
             </button>
             <button
               onClick={() => setLanguage("en")}
               className={`flex items-center gap-1.5 rounded-r-lg px-2.5 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <span className="text-base leading-none">&#127468;&#127463;</span> EN
+              <UKFlag /> EN
             </button>
           </div>
           {user ? (

@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { Shield, Users, FileText, ShieldCheck, Send, Settings, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { NorwayFlag, UKFlag } from "@/components/Flags";
 import type { TranslationKey } from "@/i18n/translations";
 
 const navItems = [
@@ -59,13 +60,13 @@ const DashboardLayout = () => {
               onClick={() => setLanguage("no")}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-l-lg px-3 py-1.5 transition-colors ${language === "no" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <span className="text-base leading-none">&#127475;&#127476;</span> NO
+              <NorwayFlag /> NO
             </button>
             <button
               onClick={() => setLanguage("en")}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-r-lg px-3 py-1.5 transition-colors ${language === "en" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <span className="text-base leading-none">&#127468;&#127463;</span> EN
+              <UKFlag /> EN
             </button>
           </div>
         </div>
