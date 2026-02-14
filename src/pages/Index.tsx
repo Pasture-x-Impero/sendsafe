@@ -11,8 +11,8 @@ const Index = () => {
       <Navbar />
       <main>
         <Hero />
-        <HowItWorks />
         <WhySendSafe />
+        <HowItWorks />
         <Pricing />
       </main>
       <Footer />

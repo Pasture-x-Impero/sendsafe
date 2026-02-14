@@ -2,7 +2,7 @@ export const translations = {
   en: {
     // Navbar
     "nav.howItWorks": "How it works",
-    "nav.why": "Why SendSafe",
+    "nav.why": "Why SendSafe?",
     "nav.pricing": "Pricing",
     "nav.getStarted": "Get started",
     "nav.dashboard": "Dashboard",
@@ -56,7 +56,7 @@ export const translations = {
     "how.step4.desc": "Send only what you trust — manually or automatically.",
 
     // Why SendSafe
-    "why.title": "Why SendSafe",
+    "why.title": "Why SendSafe?",
     "why.subtitle": "SendSafe doesn't just generate emails.",
     "why.subtitleBold": "It verifies them.",
     "why.reason1.title": "Prevents hallucinated company facts",
@@ -203,7 +203,7 @@ export const translations = {
   no: {
     // Navbar
     "nav.howItWorks": "Slik fungerer det",
-    "nav.why": "Hvorfor SendSafe",
+    "nav.why": "Hvorfor SendSafe?",
     "nav.pricing": "Priser",
     "nav.getStarted": "Kom i gang",
     "nav.dashboard": "Dashbord",
@@ -257,7 +257,7 @@ export const translations = {
     "how.step4.desc": "Send bare det du stoler på — manuelt eller automatisk.",
 
     // Why SendSafe
-    "why.title": "Hvorfor SendSafe",
+    "why.title": "Hvorfor SendSafe?",
     "why.subtitle": "SendSafe genererer ikke bare e-poster.",
     "why.subtitleBold": "Den verifiserer dem.",
     "why.reason1.title": "Forhindrer hallusinerte selskapsfakta",
