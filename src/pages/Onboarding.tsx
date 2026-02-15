@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, ArrowRight, ArrowLeft, Upload, Briefcase, Handshake, Users, MessageSquare, Sparkles } from "lucide-react";
+import { Shield, ArrowRight, ArrowLeft, Upload, Briefcase, Handshake, Users, MessageSquare, Sparkles, CheckCircle } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { useImportLeads } from "@/hooks/use-leads";
 import type { TranslationKey } from "@/i18n/translations";
 
 const steps = [
@@ -42,6 +43,66 @@ const Onboarding = () => {
   const { user, signUp } = useAuth();
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
+  const importLeads = useImportLeads();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadedCount, setUploadedCount] = useState(0);
+
+  const parseFile = useCallback(async (file: File) => {
+    if (!user) return;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
+
+    if (ext === "csv") {
+      const text = await file.text();
+      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (lines.length < 2) return;
+      const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
+      const companyIdx = header.findIndex((h) => h.includes("company"));
+      const emailIdx = header.findIndex((h) => h.includes("email"));
+      const nameIdx = header.findIndex((h) => h.includes("name"));
+      if (companyIdx === -1 || emailIdx === -1) return;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(",").map((c) => c.trim());
+        if (cols[emailIdx]) {
+          rows.push({
+            company: cols[companyIdx] || "",
+            contact_email: cols[emailIdx],
+            contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
+          });
+        }
+      }
+    } else if (ext === "xlsx" || ext === "xls") {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
+      for (const row of data) {
+        const keys = Object.keys(row);
+        const companyKey = keys.find((k) => k.toLowerCase().includes("company"));
+        const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
+        const nameKey = keys.find((k) => k.toLowerCase().includes("name"));
+        if (companyKey && emailKey && row[emailKey]) {
+          rows.push({
+            company: row[companyKey] || "",
+            contact_email: row[emailKey],
+            contact_name: nameKey ? row[nameKey] || null : null,
+          });
+        }
+      }
+    }
+
+    if (rows.length === 0) return;
+    const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
+    const result = await importLeads.mutateAsync(toImport);
+    setUploadedCount(result.length);
+  }, [user, importLeads]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) parseFile(file);
+  }, [parseFile]);
 
   // If already logged in and onboarding completed, go to dashboard
   useEffect(() => {
@@ -75,11 +136,12 @@ const Onboarding = () => {
 
   const handleComplete = async () => {
     if (!user) return;
-    await updateProfile.mutateAsync({
-      goal: goal as "sales" | "partnerships" | "recruiting" | "other",
-      tone: tone as "professional" | "friendly" | "direct",
+    const updates: Parameters<typeof updateProfile.mutateAsync>[0] = {
       onboarding_completed: true,
-    });
+    };
+    if (goal) updates.goal = goal as "sales" | "partnerships" | "recruiting" | "other";
+    if (tone) updates.tone = tone as "professional" | "friendly" | "direct";
+    await updateProfile.mutateAsync(updates);
     navigate("/dashboard/contacts");
   };
 
@@ -261,11 +323,37 @@ const Onboarding = () => {
               <div>
                 <h2 className="font-heading text-2xl font-bold text-foreground">{t("onboarding.uploadTitle")}</h2>
                 <p className="mt-2 text-muted-foreground">{t("onboarding.uploadDesc")}</p>
-                <div className="mt-6 flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
-                  <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-                  <p className="text-sm font-medium text-foreground">{t("onboarding.dragDrop")}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{t("onboarding.requiredColumns")}</p>
-                  <button className="mt-4 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+                <div
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleDrop}
+                  className="mt-6 flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30"
+                >
+                  {uploadedCount > 0 ? (
+                    <>
+                      <CheckCircle className="mb-3 h-10 w-10 text-success" />
+                      <p className="text-sm font-medium text-foreground">{uploadedCount} {t("contacts.imported")}</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
+                      <p className="text-sm font-medium text-foreground">{t("onboarding.dragDrop")}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t("onboarding.requiredColumns")}</p>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) parseFile(file);
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-4 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  >
                     {t("onboarding.browse")}
                   </button>
                 </div>
@@ -277,7 +365,7 @@ const Onboarding = () => {
                     onClick={next}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                   >
-                    {t("onboarding.skip")} <ArrowRight className="h-4 w-4" />
+                    {uploadedCount > 0 ? t("onboarding.continue") : t("onboarding.skip")} <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>

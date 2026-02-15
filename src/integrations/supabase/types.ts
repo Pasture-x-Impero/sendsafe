@@ -12,51 +12,26 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       contact_group_memberships: {
         Row: {
-          id: string
           contact_id: string
-          group_id: string
           created_at: string
+          group_id: string
+          id: string
         }
         Insert: {
-          id?: string
           contact_id: string
-          group_id: string
           created_at?: string
+          group_id: string
+          id?: string
         }
         Update: {
-          id?: string
           contact_id?: string
-          group_id?: string
           created_at?: string
+          group_id?: string
+          id?: string
         }
         Relationships: [
           {
@@ -77,22 +52,22 @@ export type Database = {
       }
       contact_groups: {
         Row: {
-          id: string
-          user_id: string
-          name: string
           created_at: string
+          id: string
+          name: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
           created_at?: string
+          id?: string
+          name: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
           created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -367,9 +342,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
