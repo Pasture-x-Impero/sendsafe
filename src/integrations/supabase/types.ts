@@ -39,10 +39,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_group_memberships: {
+        Row: {
+          id: string
+          contact_id: string
+          group_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          contact_id: string
+          group_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          contact_id?: string
+          group_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_group_memberships_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_group_memberships_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "contact_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_groups: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       emails: {
         Row: {
           approved: boolean
           body: string
+          campaign_id: string | null
           company: string
           confidence: number
           contact_email: string
@@ -61,6 +119,7 @@ export type Database = {
         Insert: {
           approved?: boolean
           body: string
+          campaign_id?: string | null
           company: string
           confidence?: number
           contact_email: string
@@ -79,6 +138,7 @@ export type Database = {
         Update: {
           approved?: boolean
           body?: string
+          campaign_id?: string | null
           company?: string
           confidence?: number
           contact_email?: string
@@ -141,6 +201,9 @@ export type Database = {
           goal: string
           id: string
           onboarding_completed: boolean
+          smtp_api_key: string | null
+          smtp_sender_email: string | null
+          smtp_sender_name: string | null
           tone: string
           updated_at: string
         }
@@ -150,6 +213,9 @@ export type Database = {
           goal?: string
           id: string
           onboarding_completed?: boolean
+          smtp_api_key?: string | null
+          smtp_sender_email?: string | null
+          smtp_sender_name?: string | null
           tone?: string
           updated_at?: string
         }
@@ -159,6 +225,9 @@ export type Database = {
           goal?: string
           id?: string
           onboarding_completed?: boolean
+          smtp_api_key?: string | null
+          smtp_sender_email?: string | null
+          smtp_sender_name?: string | null
           tone?: string
           updated_at?: string
         }

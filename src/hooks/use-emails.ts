@@ -44,19 +44,39 @@ export function useApproveEmail() {
   });
 }
 
+export function useApproveAllEmails() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("Not authenticated");
+      const { data, error } = await supabase
+        .from("emails")
+        .update({ approved: true, status: "approved" })
+        .eq("user_id", user.id)
+        .in("status", ["draft", "needs_review"])
+        .select();
+      if (error) throw error;
+      return data as Email[];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
+  });
+}
+
 export function useSendEmail() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (emailId: string) => {
-      const { data, error } = await supabase
-        .from("emails")
-        .update({ status: "sent", sent_at: new Date().toISOString() })
-        .eq("id", emailId)
-        .select()
-        .single();
+    mutationFn: async ({ emailId, testEmail }: { emailId: string; testEmail?: string }) => {
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: { email_id: emailId, test_email: testEmail },
+      });
       if (error) throw error;
-      return data as Email;
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emails"] });

@@ -80,7 +80,7 @@ const Onboarding = () => {
       tone: tone as "professional" | "friendly" | "direct",
       onboarding_completed: true,
     });
-    navigate("/dashboard/approval");
+    navigate("/dashboard/contacts");
   };
 
   return (

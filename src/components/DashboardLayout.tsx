@@ -1,14 +1,14 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, Users, FileText, ShieldCheck, Send, Settings, LogOut } from "lucide-react";
+import { Shield, Users, PenSquare, ShieldCheck, Send, Settings, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { NorwayFlag, UKFlag } from "@/components/Flags";
 import type { TranslationKey } from "@/i18n/translations";
 
 const navItems = [
-  { to: "/dashboard/leads", labelKey: "sidebar.leads" as TranslationKey, icon: Users },
-  { to: "/dashboard/drafts", labelKey: "sidebar.drafts" as TranslationKey, icon: FileText },
-  { to: "/dashboard/approval", labelKey: "sidebar.approval" as TranslationKey, icon: ShieldCheck },
+  { to: "/dashboard/contacts", labelKey: "sidebar.contacts" as TranslationKey, icon: Users },
+  { to: "/dashboard/create", labelKey: "sidebar.create" as TranslationKey, icon: PenSquare },
+  { to: "/dashboard/review", labelKey: "sidebar.review" as TranslationKey, icon: ShieldCheck },
   { to: "/dashboard/sent", labelKey: "sidebar.sent" as TranslationKey, icon: Send },
   { to: "/dashboard/settings", labelKey: "sidebar.settings" as TranslationKey, icon: Settings },
 ];

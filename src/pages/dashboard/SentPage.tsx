@@ -1,4 +1,5 @@
-import { CheckCircle } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useEmails } from "@/hooks/use-emails";
@@ -6,6 +7,7 @@ import { useEmails } from "@/hooks/use-emails";
 const SentPage = () => {
   const { t } = useLanguage();
   const { data: emails = [], isLoading } = useEmails("sent");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div>
@@ -32,25 +34,46 @@ const SentPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.subject")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.confidence")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.sent")}</th>
+                <th className="w-10 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {emails.map((email) => (
-                <tr key={email.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-sm font-medium text-foreground">{email.company}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{email.contact_name}</td>
-                  <td className="px-4 py-3 text-sm text-foreground">{email.subject}</td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 text-sm text-success">
-                      <CheckCircle className="h-3.5 w-3.5" /> {email.confidence}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {email.sent_at
-                      ? formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })
-                      : "—"}
-                  </td>
-                </tr>
+                <>
+                  <tr
+                    key={email.id}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-accent/30"
+                    onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
+                  >
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">{email.company}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{email.contact_name}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{email.subject}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1 text-sm text-success">
+                        <CheckCircle className="h-3.5 w-3.5" /> {email.confidence}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {email.sent_at
+                        ? formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {expandedId === email.id ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </td>
+                  </tr>
+                  {expandedId === email.id && (
+                    <tr key={email.id + "-body"}>
+                      <td colSpan={6} className="border-b border-border bg-accent/20 px-6 py-4">
+                        <p className="whitespace-pre-wrap text-sm text-foreground">{email.body}</p>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
