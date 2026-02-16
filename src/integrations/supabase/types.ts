@@ -173,6 +173,7 @@ export type Database = {
         Row: {
           autosend_threshold: number
           created_at: string
+          email_signature: string | null
           goal: string
           id: string
           onboarding_completed: boolean
@@ -185,6 +186,7 @@ export type Database = {
         Insert: {
           autosend_threshold?: number
           created_at?: string
+          email_signature?: string | null
           goal?: string
           id: string
           onboarding_completed?: boolean
@@ -197,6 +199,7 @@ export type Database = {
         Update: {
           autosend_threshold?: number
           created_at?: string
+          email_signature?: string | null
           goal?: string
           id?: string
           onboarding_completed?: boolean

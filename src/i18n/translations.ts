@@ -242,6 +242,15 @@ export const translations = {
     "settings.domain.verify": "Verify DNS Records",
     "settings.domain.verifying": "Verifying…",
     "settings.domain.notRegistered": "Domain not yet registered. Save your sender email to register it.",
+    "settings.signature.label": "Email Signature",
+    "settings.signature.desc": "Paste your email signature from Outlook or another email client. HTML formatting is preserved.",
+    "settings.signature.placeholder": "Paste your signature here…",
+    "settings.signature.clear": "Clear signature",
+    "settings.preview.title": "Email Preview",
+    "settings.preview.desc": "Preview how your emails will look with your current tone and signature.",
+    "settings.preview.sampleBody.professional": "Dear {{name}},\n\nI hope this message finds you well. I wanted to reach out regarding a potential opportunity that I believe would be mutually beneficial for our organizations.\n\nI would welcome the chance to discuss this further at your convenience.\n\nBest regards,",
+    "settings.preview.sampleBody.friendly": "Hi {{name}}! 👋\n\nI came across your company and thought we could be a great fit for each other. Would love to chat about how we might work together!\n\nLooking forward to hearing from you,",
+    "settings.preview.sampleBody.direct": "Hi {{name}},\n\nI have a proposal that could help your team. Here's what we offer and why it matters for you.\n\nLet me know if you're interested — happy to set up a quick call.\n\nThanks,",
 
     // Sent page
     "sent.title": "Sent",
@@ -541,6 +550,15 @@ export const translations = {
     "settings.domain.verify": "Bekreft DNS-oppføringer",
     "settings.domain.verifying": "Bekrefter…",
     "settings.domain.notRegistered": "Domenet er ikke registrert ennå. Lagre avsender-e-posten din for å registrere det.",
+    "settings.signature.label": "E-postsignatur",
+    "settings.signature.desc": "Lim inn e-postsignaturen din fra Outlook eller en annen e-postklient. HTML-formatering bevares.",
+    "settings.signature.placeholder": "Lim inn signaturen din her…",
+    "settings.signature.clear": "Fjern signatur",
+    "settings.preview.title": "E-postforhåndsvisning",
+    "settings.preview.desc": "Forhåndsvis hvordan e-postene dine vil se ut med gjeldende tone og signatur.",
+    "settings.preview.sampleBody.professional": "Kjære {{name}},\n\nJeg håper denne meldingen finner deg vel. Jeg ønsket å ta kontakt angående en potensiell mulighet som jeg tror vil være gjensidig fordelaktig for våre organisasjoner.\n\nJeg vil gjerne diskutere dette nærmere ved din anledning.\n\nMed vennlig hilsen,",
+    "settings.preview.sampleBody.friendly": "Hei {{name}}! 👋\n\nJeg kom over selskapet ditt og tenkte vi kunne passe godt sammen. Hadde vært gøy å snakke om hvordan vi kan samarbeide!\n\nGleder meg til å høre fra deg,",
+    "settings.preview.sampleBody.direct": "Hei {{name}},\n\nJeg har et forslag som kan hjelpe teamet ditt. Her er hva vi tilbyr og hvorfor det er relevant for dere.\n\nGi meg beskjed om du er interessert — setter gjerne opp en rask samtale.\n\nTakk,",
 
     // Sent page
     "sent.title": "Sendt",

@@ -7,6 +7,7 @@ export interface Profile {
   smtp_api_key: string | null;
   smtp_sender_email: string | null;
   smtp_sender_name: string | null;
+  email_signature: string | null;
   created_at: string;
   updated_at: string;
 }

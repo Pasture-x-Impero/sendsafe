@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
 import { toast } from "sonner";
+import DOMPurify from "dompurify";
 
 const tones = ["professional", "friendly", "direct"] as const;
 const goals = ["sales", "partnerships", "recruiting", "other"] as const;
@@ -28,10 +29,35 @@ const SettingsPage = () => {
   const [smtpSenderEmail, setSmtpSenderEmail] = useState<string | null>(null);
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
   const [smtpSaving, setSmtpSaving] = useState(false);
+  const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const signatureRef = useRef<HTMLDivElement>(null);
+  const signatureInitialized = useRef(false);
 
   // Initialize from profile on first load
   const senderEmail = smtpSenderEmail ?? profile?.smtp_sender_email ?? "";
   const senderName = smtpSenderName ?? profile?.smtp_sender_name ?? "";
+  const currentSignature = signatureHtml ?? profile?.email_signature ?? "";
+
+  // Set contentEditable innerHTML from profile on first load (avoids cursor-jump)
+  useEffect(() => {
+    if (profile?.email_signature && signatureRef.current && !signatureInitialized.current) {
+      signatureRef.current.innerHTML = DOMPurify.sanitize(profile.email_signature);
+      signatureInitialized.current = true;
+    }
+  }, [profile?.email_signature]);
+
+  const handleSignatureInput = useCallback(() => {
+    if (signatureRef.current) {
+      setSignatureHtml(signatureRef.current.innerHTML);
+    }
+  }, []);
+
+  const handleClearSignature = useCallback(() => {
+    if (signatureRef.current) {
+      signatureRef.current.innerHTML = "";
+    }
+    setSignatureHtml("");
+  }, []);
 
   const addDomain = useAddSenderDomain();
   const verifyDomain = useVerifySenderDomain();
@@ -43,9 +69,11 @@ const SettingsPage = () => {
   const handleSmtpSave = async () => {
     setSmtpSaving(true);
     try {
+      const sanitizedSignature = currentSignature ? DOMPurify.sanitize(currentSignature) : null;
       await updateProfile.mutateAsync({
         smtp_sender_email: senderEmail || null,
         smtp_sender_name: senderName || null,
+        email_signature: sanitizedSignature || null,
       });
 
       // Register domain with SMTP2GO when sender email changes
@@ -130,6 +158,27 @@ const SettingsPage = () => {
                 className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="Your Company"
               />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.signature.label")}</label>
+              <p className="mb-2 text-xs text-muted-foreground">{t("settings.signature.desc")}</p>
+              <div
+                ref={signatureRef}
+                contentEditable
+                onInput={handleSignatureInput}
+                data-placeholder={t("settings.signature.placeholder")}
+                className="min-h-[80px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
+              />
+              {currentSignature && (
+                <button
+                  type="button"
+                  onClick={handleClearSignature}
+                  className="mt-1 text-xs text-muted-foreground underline hover:text-foreground"
+                >
+                  {t("settings.signature.clear")}
+                </button>
+              )}
             </div>
 
             <button
@@ -263,6 +312,24 @@ const SettingsPage = () => {
             ))}
           </div>
         </div>
+
+        {/* Email Preview */}
+        {currentSignature && (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
+            <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
+              <p className="whitespace-pre-line text-sm text-foreground">
+                {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
+              </p>
+              <hr className="my-4 border-border" />
+              <div
+                className="text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature) }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Goal */}
         <div className="rounded-xl border border-border bg-card p-6">

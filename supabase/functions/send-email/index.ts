@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Fetch user's sender settings from profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("smtp_sender_email, smtp_sender_name")
+      .select("smtp_sender_email, smtp_sender_name, email_signature")
       .eq("id", user.id)
       .single();
 
@@ -95,6 +95,17 @@ Deno.serve(async (req) => {
     const recipient = test_email || email.contact_email;
     const senderName = profile.smtp_sender_name || "SendSafe";
 
+    // Build email body, appending signature if present
+    let htmlBody = email.body.replace(/\n/g, "<br>");
+    let textBody = email.body;
+
+    if (profile.email_signature) {
+      htmlBody += "<br><br><hr>" + profile.email_signature;
+      // Strip HTML tags for plain-text version of signature
+      const textSignature = profile.email_signature.replace(/<[^>]*>/g, "");
+      textBody += "\n\n---\n" + textSignature;
+    }
+
     // Call SMTP2GO API
     const smtpResponse = await fetch("https://api.smtp2go.com/v3/email/send", {
       method: "POST",
@@ -104,8 +115,8 @@ Deno.serve(async (req) => {
         to: [`${email.contact_name} <${recipient}>`],
         sender: `${senderName} <${profile.smtp_sender_email}>`,
         subject: email.subject,
-        html_body: email.body.replace(/\n/g, "<br>"),
-        text_body: email.body,
+        html_body: htmlBody,
+        text_body: textBody,
       }),
     });
 
