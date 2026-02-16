@@ -11,6 +11,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const smtpApiKey = Deno.env.get("SMTP2GO_API_KEY");
+    if (!smtpApiKey) {
+      return new Response(JSON.stringify({ error: "SMTP2GO is not configured on the server" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
@@ -63,10 +71,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Fetch user's SMTP settings from profile
+    // Fetch user's sender settings from profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("smtp_api_key, smtp_sender_email, smtp_sender_name")
+      .select("smtp_sender_email, smtp_sender_name")
       .eq("id", user.id)
       .single();
 
@@ -77,8 +85,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!profile.smtp_api_key || !profile.smtp_sender_email) {
-      return new Response(JSON.stringify({ error: "SMTP not configured. Add your SMTP2GO API key and sender email in Settings." }), {
+    if (!profile.smtp_sender_email) {
+      return new Response(JSON.stringify({ error: "Sender email not configured. Set your sender email in Settings." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -92,7 +100,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api_key: profile.smtp_api_key,
+        api_key: smtpApiKey,
         to: [`${email.contact_name} <${recipient}>`],
         sender: `${senderName} <${profile.smtp_sender_email}>`,
         subject: email.subject,

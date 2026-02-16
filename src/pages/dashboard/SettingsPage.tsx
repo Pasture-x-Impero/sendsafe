@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { toast } from "sonner";
@@ -25,14 +24,11 @@ const SettingsPage = () => {
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
 
-  const [smtpApiKey, setSmtpApiKey] = useState<string | null>(null);
   const [smtpSenderEmail, setSmtpSenderEmail] = useState<string | null>(null);
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [smtpSaving, setSmtpSaving] = useState(false);
 
-  // Initialize SMTP fields from profile on first load
-  const apiKey = smtpApiKey ?? profile?.smtp_api_key ?? "";
+  // Initialize from profile on first load
   const senderEmail = smtpSenderEmail ?? profile?.smtp_sender_email ?? "";
   const senderName = smtpSenderName ?? profile?.smtp_sender_name ?? "";
 
@@ -40,13 +36,12 @@ const SettingsPage = () => {
     setSmtpSaving(true);
     try {
       await updateProfile.mutateAsync({
-        smtp_api_key: apiKey || null,
         smtp_sender_email: senderEmail || null,
         smtp_sender_name: senderName || null,
       });
       toast.success(t("settings.smtp.saved"));
     } catch {
-      toast.error("Failed to save SMTP settings");
+      toast.error("Failed to save sender settings");
     } finally {
       setSmtpSaving(false);
     }
@@ -78,32 +73,12 @@ const SettingsPage = () => {
       </div>
 
       <div className="max-w-2xl space-y-8">
-        {/* SMTP Configuration */}
+        {/* Sender Configuration */}
         <div className="rounded-xl border border-border bg-card p-6">
           <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.smtp.title")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{t("settings.smtp.desc")}</p>
 
           <div className="mt-4 space-y-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.smtp.apiKey")}</label>
-              <div className="relative">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => setSmtpApiKey(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 pr-16 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="api-xxxxxxxxxxxxxxxxxxxxxxxx"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.smtp.senderEmail")}</label>
               <input
