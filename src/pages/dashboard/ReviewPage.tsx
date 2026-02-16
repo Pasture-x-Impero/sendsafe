@@ -32,7 +32,7 @@ const ReviewPage = () => {
   const goNext = () => setCurrentIndex((i) => Math.min(i + 1, total - 1));
   const goPrev = () => setCurrentIndex((i) => Math.max(i - 1, 0));
 
-  const hasSmtp = !!(profile?.smtp_api_key && profile?.smtp_sender_email);
+  const hasSmtp = !!profile?.smtp_sender_email;
 
   const handleApprove = async () => {
     if (!current) return;
