@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ClipboardEvent } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
@@ -60,6 +60,41 @@ const SettingsPage = () => {
     }
     setSignatureHtml("");
   }, []);
+
+  // Clean up Outlook / Word HTML on paste
+  const cleanOutlookHtml = useCallback((html: string) => {
+    let clean = html;
+    // Remove Office XML tags (<o:p>, <v:*, <w:*, etc.)
+    clean = clean.replace(/<\/?[ovw]:[^>]*>/gi, "");
+    // Remove mso-* styles
+    clean = clean.replace(/mso-[^;:"']+:[^;:"']+;?/gi, "");
+    // Remove class="Mso*"
+    clean = clean.replace(/class="Mso[^"]*"/gi, "");
+    // Remove empty style attributes
+    clean = clean.replace(/\s*style="\s*"/gi, "");
+    // Remove XML declarations and conditional comments
+    clean = clean.replace(/<!\[if[^>]*>[\s\S]*?<!\[endif\]>/gi, "");
+    clean = clean.replace(/<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi, "");
+    // Remove <xml>...</xml> blocks
+    clean = clean.replace(/<xml>[\s\S]*?<\/xml>/gi, "");
+    // Remove font-family declarations (often Calibri/Times New Roman from Office)
+    clean = clean.replace(/font-family:[^;}"']+;?/gi, "");
+    // Remove empty spans
+    clean = clean.replace(/<span[^>]*>\s*<\/span>/gi, "");
+    return DOMPurify.sanitize(clean);
+  }, []);
+
+  const handleSignaturePaste = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
+    const html = e.clipboardData.getData("text/html");
+    if (html) {
+      e.preventDefault();
+      const cleaned = cleanOutlookHtml(html);
+      document.execCommand("insertHTML", false, cleaned);
+      if (signatureRef.current) {
+        setSignatureHtml(signatureRef.current.innerHTML);
+      }
+    }
+  }, [cleanOutlookHtml]);
 
   const addDomain = useAddSenderDomain();
   const verifyDomain = useVerifySenderDomain();
@@ -340,6 +375,7 @@ const SettingsPage = () => {
                 ref={signatureRef}
                 contentEditable
                 onInput={handleSignatureInput}
+                onPaste={handleSignaturePaste}
                 data-placeholder={t("settings.signature.placeholder")}
                 className="min-h-[80px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
               />

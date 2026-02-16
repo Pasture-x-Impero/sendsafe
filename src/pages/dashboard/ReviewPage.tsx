@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { CheckCircle, Send, FlaskConical, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import DOMPurify from "dompurify";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -172,9 +172,24 @@ const ReviewPage = () => {
     updateEmail.mutate({ id: email.id, subject: value });
   };
 
-  const handleBodyBlur = (email: Email, value: string) => {
-    if (value === email.body) return;
-    updateEmail.mutate({ id: email.id, body: value });
+  const handleBodyBlur = (email: Email, el: HTMLDivElement) => {
+    // Extract only the body part (before the signature divider)
+    const divider = el.querySelector("[data-signature-divider]");
+    let text: string;
+    if (divider) {
+      // Collect text nodes before the divider
+      const range = document.createRange();
+      range.setStartBefore(el.firstChild!);
+      range.setEndBefore(divider);
+      const fragment = range.cloneContents();
+      const temp = document.createElement("div");
+      temp.appendChild(fragment);
+      text = temp.innerText.trim();
+    } else {
+      text = el.innerText.trim();
+    }
+    if (text === email.body) return;
+    updateEmail.mutate({ id: email.id, body: text });
   };
 
   const groupKey = (g: CampaignGroup) => g.campaignId ?? "__ungrouped";
@@ -310,24 +325,21 @@ const ReviewPage = () => {
 
                               <div className="mb-4">
                                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.body")}</label>
-                                <textarea
+                                <div
                                   key={email.id + "-body"}
-                                  defaultValue={email.body}
-                                  onBlur={(e) => handleBodyBlur(email, e.target.value)}
-                                  rows={10}
-                                  className={`w-full ${profile?.email_signature ? "rounded-t-lg" : "rounded-lg"} border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary`}
+                                  contentEditable
+                                  suppressContentEditableWarning
+                                  onBlur={(e) => handleBodyBlur(email, e.currentTarget)}
+                                  className="min-h-[200px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre-wrap"
+                                  dangerouslySetInnerHTML={{
+                                    __html: DOMPurify.sanitize(
+                                      email.body.replace(/\n/g, "<br>") +
+                                      (profile?.email_signature
+                                        ? '<div data-signature-divider="true" contenteditable="false" style="pointer-events:none"><hr style="margin:12px 0;border-color:var(--border)">' + profile.email_signature + '</div>'
+                                        : "")
+                                    , { ADD_ATTR: ["data-signature-divider"] }),
+                                  }}
                                 />
-                                {profile?.email_signature && (
-                                  <div className="rounded-b-lg border border-t-0 border-border bg-accent/10 px-3 py-2">
-                                    <hr className="mb-3 border-border" />
-                                    <div
-                                      className="prose prose-sm dark:prose-invert max-w-none text-sm"
-                                      dangerouslySetInnerHTML={{
-                                        __html: DOMPurify.sanitize(profile.email_signature),
-                                      }}
-                                    />
-                                  </div>
-                                )}
                               </div>
 
                               {/* Action buttons */}
