@@ -63,62 +63,76 @@ const ContactsPage = () => {
   };
 
   const parseFile = useCallback(async (file: File) => {
-    const ext = file.name.split(".").pop()?.toLowerCase();
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
 
-    let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
+      let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
 
-    if (ext === "csv") {
-      const text = await file.text();
-      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (lines.length < 2) return;
-      const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
-      const companyIdx = header.findIndex((h) => h.includes("company"));
-      const emailIdx = header.findIndex((h) => h.includes("email"));
-      const nameIdx = header.findIndex((h) => h.includes("name"));
+      if (ext === "csv") {
+        const text = await file.text();
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          toast.error("CSV file is empty or has no data rows");
+          return;
+        }
+        const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
+        const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("bedrift") || h.includes("firma"));
+        const emailIdx = header.findIndex((h) => h.includes("email") || h.includes("e-post") || h.includes("epost"));
+        const nameIdx = header.findIndex((h) => h.includes("name") || h.includes("navn"));
 
-      if (companyIdx === -1 || emailIdx === -1) {
-        toast.error("CSV must have 'company' and 'email' columns");
+        if (companyIdx === -1 || emailIdx === -1) {
+          toast.error("CSV must have 'company' and 'email' columns");
+          return;
+        }
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",").map((c) => c.trim());
+          if (cols[emailIdx]) {
+            rows.push({
+              company: cols[companyIdx] || "",
+              contact_email: cols[emailIdx],
+              contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
+            });
+          }
+        }
+      } else if (ext === "xlsx" || ext === "xls") {
+        const XLSX = await import("xlsx");
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
+
+        for (const row of data) {
+          const keys = Object.keys(row);
+          const companyKey = keys.find((k) => k.toLowerCase().includes("company") || k.toLowerCase().includes("bedrift") || k.toLowerCase().includes("firma"));
+          const emailKey = keys.find((k) => k.toLowerCase().includes("email") || k.toLowerCase().includes("e-post") || k.toLowerCase().includes("epost"));
+          const nameKey = keys.find((k) => k.toLowerCase().includes("name") || k.toLowerCase().includes("navn"));
+
+          if (companyKey && emailKey && row[emailKey]) {
+            rows.push({
+              company: row[companyKey] || "",
+              contact_email: row[emailKey],
+              contact_name: nameKey ? row[nameKey] || null : null,
+            });
+          }
+        }
+      } else {
+        toast.error("Unsupported file type. Use .csv, .xlsx, or .xls");
         return;
       }
 
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(",").map((c) => c.trim());
-        if (cols[emailIdx]) {
-          rows.push({
-            company: cols[companyIdx] || "",
-            contact_email: cols[emailIdx],
-            contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
-          });
-        }
+      if (rows.length === 0) {
+        toast.error("No valid contacts found in file");
+        return;
       }
-    } else if (ext === "xlsx" || ext === "xls") {
-      const XLSX = await import("xlsx");
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
 
-      for (const row of data) {
-        const keys = Object.keys(row);
-        const companyKey = keys.find((k) => k.toLowerCase().includes("company"));
-        const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
-        const nameKey = keys.find((k) => k.toLowerCase().includes("name"));
-
-        if (companyKey && emailKey && row[emailKey]) {
-          rows.push({
-            company: row[companyKey] || "",
-            contact_email: row[emailKey],
-            contact_name: nameKey ? row[nameKey] || null : null,
-          });
-        }
-      }
+      const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
+      const result = await importLeads.mutateAsync(toImport);
+      setImportStats({ imported: result.length, skipped: rows.length - result.length });
+    } catch (err: unknown) {
+      console.error("File upload error:", err);
+      toast.error("Failed to import contacts");
     }
-
-    if (rows.length === 0) return;
-
-    const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
-    const result = await importLeads.mutateAsync(toImport);
-    setImportStats({ imported: result.length, skipped: rows.length - result.length });
   }, [importLeads]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

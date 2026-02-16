@@ -6,6 +6,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useImportLeads } from "@/hooks/use-leads";
+import { toast } from "sonner";
 import type { TranslationKey } from "@/i18n/translations";
 
 const steps = [
@@ -49,53 +50,70 @@ const Onboarding = () => {
 
   const parseFile = useCallback(async (file: File) => {
     if (!user) return;
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
 
-    if (ext === "csv") {
-      const text = await file.text();
-      const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
-      if (lines.length < 2) return;
-      const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
-      const companyIdx = header.findIndex((h) => h.includes("company"));
-      const emailIdx = header.findIndex((h) => h.includes("email"));
-      const nameIdx = header.findIndex((h) => h.includes("name"));
-      if (companyIdx === -1 || emailIdx === -1) return;
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(",").map((c) => c.trim());
-        if (cols[emailIdx]) {
-          rows.push({
-            company: cols[companyIdx] || "",
-            contact_email: cols[emailIdx],
-            contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
-          });
+      if (ext === "csv") {
+        const text = await file.text();
+        const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+        if (lines.length < 2) {
+          toast.error("CSV file is empty or has no data rows");
+          return;
         }
-      }
-    } else if (ext === "xlsx" || ext === "xls") {
-      const XLSX = await import("xlsx");
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
-      for (const row of data) {
-        const keys = Object.keys(row);
-        const companyKey = keys.find((k) => k.toLowerCase().includes("company"));
-        const emailKey = keys.find((k) => k.toLowerCase().includes("email"));
-        const nameKey = keys.find((k) => k.toLowerCase().includes("name"));
-        if (companyKey && emailKey && row[emailKey]) {
-          rows.push({
-            company: row[companyKey] || "",
-            contact_email: row[emailKey],
-            contact_name: nameKey ? row[nameKey] || null : null,
-          });
+        const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
+        const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("bedrift") || h.includes("firma"));
+        const emailIdx = header.findIndex((h) => h.includes("email") || h.includes("e-post") || h.includes("epost"));
+        const nameIdx = header.findIndex((h) => h.includes("name") || h.includes("navn"));
+        if (companyIdx === -1 || emailIdx === -1) {
+          toast.error("CSV must have 'company' and 'email' columns");
+          return;
         }
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(",").map((c) => c.trim());
+          if (cols[emailIdx]) {
+            rows.push({
+              company: cols[companyIdx] || "",
+              contact_email: cols[emailIdx],
+              contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
+            });
+          }
+        }
+      } else if (ext === "xlsx" || ext === "xls") {
+        const XLSX = await import("xlsx");
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
+        for (const row of data) {
+          const keys = Object.keys(row);
+          const companyKey = keys.find((k) => k.toLowerCase().includes("company") || k.toLowerCase().includes("bedrift") || k.toLowerCase().includes("firma"));
+          const emailKey = keys.find((k) => k.toLowerCase().includes("email") || k.toLowerCase().includes("e-post") || k.toLowerCase().includes("epost"));
+          const nameKey = keys.find((k) => k.toLowerCase().includes("name") || k.toLowerCase().includes("navn"));
+          if (companyKey && emailKey && row[emailKey]) {
+            rows.push({
+              company: row[companyKey] || "",
+              contact_email: row[emailKey],
+              contact_name: nameKey ? row[nameKey] || null : null,
+            });
+          }
+        }
+      } else {
+        toast.error("Unsupported file type. Use .csv, .xlsx, or .xls");
+        return;
       }
+
+      if (rows.length === 0) {
+        toast.error("No valid contacts found in file");
+        return;
+      }
+      const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
+      const result = await importLeads.mutateAsync(toImport);
+      setUploadedCount(result.length);
+    } catch (err: unknown) {
+      console.error("File upload error:", err);
+      toast.error("Failed to import contacts");
     }
-
-    if (rows.length === 0) return;
-    const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
-    const result = await importLeads.mutateAsync(toImport);
-    setUploadedCount(result.length);
   }, [user, importLeads]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -136,13 +154,19 @@ const Onboarding = () => {
 
   const handleComplete = async () => {
     if (!user) return;
-    const updates: Parameters<typeof updateProfile.mutateAsync>[0] = {
-      onboarding_completed: true,
-    };
-    if (goal) updates.goal = goal as "sales" | "partnerships" | "recruiting" | "other";
-    if (tone) updates.tone = tone as "professional" | "friendly" | "direct";
-    await updateProfile.mutateAsync(updates);
-    navigate("/dashboard/contacts");
+    try {
+      const updates: Parameters<typeof updateProfile.mutateAsync>[0] = {
+        onboarding_completed: true,
+      };
+      if (goal) updates.goal = goal as "sales" | "partnerships" | "recruiting" | "other";
+      if (tone) updates.tone = tone as "professional" | "friendly" | "direct";
+      await updateProfile.mutateAsync(updates);
+      navigate("/dashboard/contacts");
+    } catch (err: unknown) {
+      console.error("Failed to complete onboarding:", err);
+      // Navigate anyway so the user isn't stuck
+      navigate("/dashboard/contacts");
+    }
   };
 
   return (
