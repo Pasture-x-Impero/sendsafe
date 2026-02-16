@@ -76,6 +76,7 @@ export type Database = {
           approved: boolean
           body: string
           campaign_id: string | null
+          campaign_name: string | null
           company: string
           confidence: number
           contact_email: string
@@ -95,6 +96,7 @@ export type Database = {
           approved?: boolean
           body: string
           campaign_id?: string | null
+          campaign_name?: string | null
           company: string
           confidence?: number
           contact_email: string
@@ -114,6 +116,7 @@ export type Database = {
           approved?: boolean
           body?: string
           campaign_id?: string | null
+          campaign_name?: string | null
           company?: string
           confidence?: number
           contact_email?: string

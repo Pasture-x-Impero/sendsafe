@@ -63,8 +63,26 @@ const SettingsPage = () => {
   const verifyDomain = useVerifySenderDomain();
   const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.smtp_sender_email);
   const [verifying, setVerifying] = useState(false);
+  const [registering, setRegistering] = useState(false);
 
   const currentDomain = profile?.smtp_sender_email?.split("@")[1] ?? null;
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(t("settings.domain.copied"));
+  };
+
+  const handleRegisterDomain = async () => {
+    if (!currentDomain) return;
+    setRegistering(true);
+    try {
+      await addDomain.mutateAsync(currentDomain);
+    } catch {
+      toast.error("Failed to register domain");
+    } finally {
+      setRegistering(false);
+    }
+  };
 
   const handleSmtpSave = async () => {
     setSmtpSaving(true);
@@ -76,9 +94,9 @@ const SettingsPage = () => {
         email_signature: sanitizedSignature || null,
       });
 
-      // Register domain with SMTP2GO when domain changes or isn't registered yet
+      // Always try to register domain with SMTP2GO
       const newDomain = senderEmail?.split("@")[1];
-      if (newDomain && (newDomain !== profile?.smtp_sender_email?.split("@")[1] || !domainInfo)) {
+      if (newDomain) {
         try {
           await addDomain.mutateAsync(newDomain);
         } catch (domainErr) {
@@ -231,8 +249,8 @@ const SettingsPage = () => {
                         {/* DKIM record */}
                         <tr>
                           <td className="px-3 py-2 font-mono text-xs">CNAME</td>
-                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.dkim_selector}</td>
-                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.dkim_value}</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard(domainInfo.dkim_selector)} title="Click to copy">{domainInfo.dkim_selector}</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard(domainInfo.dkim_value)} title="Click to copy">{domainInfo.dkim_value}</td>
                           <td className="px-3 py-2">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               domainInfo.dkim_verified ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
@@ -244,8 +262,8 @@ const SettingsPage = () => {
                         {/* Return-path record */}
                         <tr>
                           <td className="px-3 py-2 font-mono text-xs">CNAME</td>
-                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.rpath_selector}</td>
-                          <td className="px-3 py-2 font-mono text-xs break-all">return.smtp2go.net</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard(domainInfo.rpath_selector)} title="Click to copy">{domainInfo.rpath_selector}</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard("return.smtp2go.net")} title="Click to copy">return.smtp2go.net</td>
                           <td className="px-3 py-2">
                             <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                               domainInfo.rpath_verified ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
@@ -258,8 +276,8 @@ const SettingsPage = () => {
                         {domainInfo.trackers?.map((tracker, i) => (
                           <tr key={i}>
                             <td className="px-3 py-2 font-mono text-xs">CNAME</td>
-                            <td className="px-3 py-2 font-mono text-xs break-all">{tracker.subdomain}</td>
-                            <td className="px-3 py-2 font-mono text-xs break-all">track.smtp2go.net</td>
+                            <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard(tracker.subdomain)} title="Click to copy">{tracker.subdomain}</td>
+                            <td className="px-3 py-2 font-mono text-xs break-all cursor-pointer hover:text-primary" onClick={() => copyToClipboard("track.smtp2go.net")} title="Click to copy">track.smtp2go.net</td>
                             <td className="px-3 py-2">
                               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                                 tracker.verification_status === "verified" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
@@ -285,7 +303,16 @@ const SettingsPage = () => {
                   )}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-muted-foreground">{t("settings.domain.notRegistered")}</p>
+                <div className="mt-4">
+                  <p className="text-sm text-muted-foreground">{t("settings.domain.notRegistered")}</p>
+                  <button
+                    onClick={handleRegisterDomain}
+                    disabled={registering}
+                    className="mt-3 rounded-lg border border-primary bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    {registering ? t("settings.domain.registering") : t("settings.domain.register")}
+                  </button>
+                </div>
               )}
             </div>
           )}

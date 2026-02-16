@@ -1,15 +1,16 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Search, Sparkles, CheckCircle, FileText } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Search, Sparkles, FileText } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 
-const steps = ["step1", "step2", "step3", "step4"] as const;
+const steps = ["step1", "step2", "step3"] as const;
 
 const CreatePage = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const { data: leads = [], isLoading } = useLeads();
   const { data: groups = [] } = useContactGroups();
   const { data: memberships = [] } = useGroupMemberships();
@@ -20,12 +21,12 @@ const CreatePage = () => {
   const [filterGroupId, setFilterGroupId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<CreateMode>("standard");
+  const [campaignName, setCampaignName] = useState("");
   // AI mode
   const [instructions, setInstructions] = useState("");
   // Standard mode
   const [templateSubject, setTemplateSubject] = useState("");
   const [templateBody, setTemplateBody] = useState("");
-  const [generated, setGenerated] = useState(false);
 
   const filteredLeads = useMemo(() => {
     let result = leads;
@@ -62,8 +63,10 @@ const CreatePage = () => {
     setSelectedIds(new Set());
   };
 
-  const canProceedFromContent =
-    mode === "ai" ? instructions.trim().length > 0 : templateSubject.trim().length > 0 && templateBody.trim().length > 0;
+  const canGenerate =
+    mode === "ai"
+      ? instructions.trim().length > 0
+      : templateSubject.trim().length > 0 && templateBody.trim().length > 0;
 
   const handleGenerate = async () => {
     const contactIds = Array.from(selectedIds);
@@ -71,11 +74,12 @@ const CreatePage = () => {
       contactIds,
       contacts: leads,
       mode,
+      campaignName: campaignName.trim() || `Campaign ${new Date().toLocaleDateString()}`,
       instructions: mode === "ai" ? instructions : undefined,
       templateSubject: mode === "standard" ? templateSubject : undefined,
       templateBody: mode === "standard" ? templateBody : undefined,
     });
-    setGenerated(true);
+    navigate("/dashboard/review");
   };
 
   return (
@@ -235,9 +239,21 @@ const CreatePage = () => {
         </div>
       )}
 
-      {/* Step 3: Write content */}
+      {/* Step 3: Write content + generate */}
       {step === 2 && (
         <div className="rounded-xl border border-border bg-card p-6">
+          {/* Campaign name */}
+          <div className="mb-5">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.campaignName")}</label>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder={t("create.campaignNamePlaceholder")}
+              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
           {mode === "ai" ? (
             <>
               <h3 className="mb-2 font-heading text-base font-semibold text-foreground">{t("create.instructions")}</h3>
@@ -282,65 +298,14 @@ const CreatePage = () => {
               <ArrowLeft className="h-4 w-4" /> {t("create.back")}
             </button>
             <button
-              onClick={() => setStep(3)}
-              disabled={!canProceedFromContent}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+              onClick={handleGenerate}
+              disabled={!canGenerate || generateEmails.isPending}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {t("create.next")} <ArrowRight className="h-4 w-4" />
+              {mode === "ai" ? <Sparkles className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+              {generateEmails.isPending ? t("create.generating") : t("create.generate")}
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Step 4: Generate */}
-      {step === 3 && (
-        <div className="rounded-xl border border-border bg-card p-6 text-center">
-          {generated ? (
-            <div>
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
-                <CheckCircle className="h-7 w-7 text-success" />
-              </div>
-              <h3 className="font-heading text-lg font-bold text-foreground">{t("create.success")}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {selectedIds.size} {t("create.selectedCount")}
-              </p>
-              <Link
-                to="/dashboard/review"
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                {t("create.goToReview")} <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          ) : (
-            <div>
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                {mode === "ai" ? (
-                  <Sparkles className="h-7 w-7 text-primary" />
-                ) : (
-                  <FileText className="h-7 w-7 text-primary" />
-                )}
-              </div>
-              <p className="mb-2 text-sm text-muted-foreground">
-                {selectedIds.size} {t("create.selectedCount")}
-              </p>
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  onClick={() => setStep(2)}
-                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-                >
-                  <ArrowLeft className="h-4 w-4" /> {t("create.back")}
-                </button>
-                <button
-                  onClick={handleGenerate}
-                  disabled={generateEmails.isPending}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {mode === "ai" ? <Sparkles className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                  {generateEmails.isPending ? t("create.generating") : t("create.generate")}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

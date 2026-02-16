@@ -198,6 +198,8 @@ export const translations = {
     "create.templateSubjectPlaceholder": "e.g. Quick question about a collaboration",
     "create.templateBody": "Email body",
     "create.templateBodyPlaceholder": "Write the email body here. The greeting \"Hei Fornavn,\" will be added automatically for each recipient.",
+    "create.campaignName": "Campaign name",
+    "create.campaignNamePlaceholder": "e.g. Q1 outreach, Partner intro…",
 
     // Review page
     "review.title": "Review",
@@ -260,7 +262,10 @@ export const translations = {
     "settings.domain.pending": "Pending",
     "settings.domain.verify": "Verify DNS Records",
     "settings.domain.verifying": "Verifying…",
-    "settings.domain.notRegistered": "Domain not yet registered. Save your sender email to register it.",
+    "settings.domain.notRegistered": "Domain not yet registered.",
+    "settings.domain.register": "Register domain",
+    "settings.domain.registering": "Registering…",
+    "settings.domain.copied": "Copied!",
     "settings.signature.label": "Email Signature",
     "settings.signature.desc": "Paste your email signature from Outlook or another email client. HTML formatting is preserved.",
     "settings.signature.placeholder": "Paste your signature here…",
@@ -525,6 +530,8 @@ export const translations = {
     "create.templateSubjectPlaceholder": "f.eks. Raskt spørsmål om et samarbeid",
     "create.templateBody": "E-postinnhold",
     "create.templateBodyPlaceholder": "Skriv e-postinnholdet her. Hilsenen \"Hei Fornavn,\" legges automatisk til for hver mottaker.",
+    "create.campaignName": "Kampanjenavn",
+    "create.campaignNamePlaceholder": "f.eks. Q1-oppsøking, Partnerintro…",
 
     // Review page
     "review.title": "Gjennomgang",
@@ -587,7 +594,10 @@ export const translations = {
     "settings.domain.pending": "Venter",
     "settings.domain.verify": "Bekreft DNS-oppføringer",
     "settings.domain.verifying": "Bekrefter…",
-    "settings.domain.notRegistered": "Domenet er ikke registrert ennå. Lagre avsender-e-posten din for å registrere det.",
+    "settings.domain.notRegistered": "Domenet er ikke registrert ennå.",
+    "settings.domain.register": "Registrer domene",
+    "settings.domain.registering": "Registrerer…",
+    "settings.domain.copied": "Kopiert!",
     "settings.signature.label": "E-postsignatur",
     "settings.signature.desc": "Lim inn e-postsignaturen din fra Outlook eller en annen e-postklient. HTML-formatering bevares.",
     "settings.signature.placeholder": "Lim inn signaturen din her…",

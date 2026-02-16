@@ -37,6 +37,7 @@ export interface Email {
   issues: string[];
   suggestions: string | null;
   campaign_id: string | null;
+  campaign_name: string | null;
   sent_at: string | null;
   created_at: string;
   updated_at: string;

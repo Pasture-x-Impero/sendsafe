@@ -49,10 +49,11 @@ const ReviewPage = () => {
     }
     const groups: CampaignGroup[] = [];
     for (const [campaignId, groupEmails] of grouped) {
+      const name = groupEmails[0]?.campaign_name;
       groups.push({
         campaignId,
         label: campaignId
-          ? `${t("review.campaign")}: ${campaignId.slice(0, 8)}…`
+          ? name || `${t("review.campaign")}: ${campaignId.slice(0, 8)}…`
           : t("review.noCampaign"),
         emails: groupEmails,
       });

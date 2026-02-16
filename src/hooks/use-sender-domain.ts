@@ -16,6 +16,27 @@ async function callSenderDomain(action: string, domain: string) {
   return res.data;
 }
 
+function parseDomainResponse(data: unknown): SenderDomain | null {
+  if (!data || typeof data !== "object") return null;
+  const obj = data as Record<string, unknown>;
+
+  // SMTP2GO can return domain info at different nesting levels
+  const d =
+    (obj.data as Record<string, unknown>)?.domain ??
+    obj.domain ??
+    // Some endpoints return the domain fields at the top of data
+    obj.data ??
+    obj;
+
+  if (!d || typeof d !== "object") return null;
+  const domain = d as Record<string, unknown>;
+
+  // Must have at least a dkim_selector to be valid domain info
+  if (!domain.dkim_selector && !domain.dkim_value) return null;
+
+  return domain as unknown as SenderDomain;
+}
+
 export function useSenderDomain(senderEmail: string | null | undefined) {
   const domain = senderEmail?.split("@")[1] ?? null;
 
@@ -25,19 +46,15 @@ export function useSenderDomain(senderEmail: string | null | undefined) {
       if (!domain) return null;
       try {
         const data = await callSenderDomain("view", domain);
-        // SMTP2GO returns domain info in data.domain or at top level
-        const d = data.data?.domain ?? data.domain;
-        if (!d) return null;
-        return d as SenderDomain;
+        return parseDomainResponse(data);
       } catch (err) {
         console.error("Domain view failed:", err);
-        // Domain API may be unavailable (e.g. API key lacks permission)
         return null;
       }
     },
     enabled: !!domain,
-    staleTime: 30_000,
-    retry: false,
+    staleTime: 10_000,
+    retry: 1,
   });
 }
 
@@ -49,7 +66,10 @@ export function useAddSenderDomain() {
       return callSenderDomain("add", domain);
     },
     onSuccess: (_data, domain) => {
-      queryClient.invalidateQueries({ queryKey: ["sender-domain", domain] });
+      // Wait briefly for SMTP2GO to process, then refetch
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["sender-domain", domain] });
+      }, 1500);
     },
   });
 }
