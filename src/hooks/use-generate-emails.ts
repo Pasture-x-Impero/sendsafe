@@ -3,10 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Lead, Email } from "@/types/database";
 
+export type CreateMode = "ai" | "standard";
+
 interface GenerateEmailsInput {
   contactIds: string[];
-  instructions: string;
   contacts: Lead[];
+  mode: CreateMode;
+  // AI mode
+  instructions?: string;
+  // Standard mode
+  templateSubject?: string;
+  templateBody?: string;
 }
 
 function generateMockEmail(contact: Lead, instructions: string): { subject: string; body: string } {
@@ -19,19 +26,37 @@ function generateMockEmail(contact: Lead, instructions: string): { subject: stri
   return { subject, body };
 }
 
+function generateStandardEmail(
+  contact: Lead,
+  templateSubject: string,
+  templateBody: string
+): { subject: string; body: string } {
+  const name = contact.contact_name || "";
+  const firstName = name.split(" ")[0] || "Hei";
+  const greeting = `Hei ${firstName},`;
+  return {
+    subject: templateSubject,
+    body: `${greeting}\n\n${templateBody}`,
+  };
+}
+
 export function useGenerateEmails() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contactIds, instructions, contacts }: GenerateEmailsInput) => {
+    mutationFn: async ({ contactIds, contacts, mode, instructions, templateSubject, templateBody }: GenerateEmailsInput) => {
       if (!user) throw new Error("Not authenticated");
 
       const campaignId = crypto.randomUUID();
       const selectedContacts = contacts.filter((c) => contactIds.includes(c.id));
 
       const emailRows = selectedContacts.map((contact) => {
-        const { subject, body } = generateMockEmail(contact, instructions);
+        const { subject, body } =
+          mode === "ai"
+            ? generateMockEmail(contact, instructions || "")
+            : generateStandardEmail(contact, templateSubject || "", templateBody || "");
+
         return {
           user_id: user.id,
           lead_id: contact.id,
@@ -40,7 +65,7 @@ export function useGenerateEmails() {
           contact_email: contact.contact_email,
           subject,
           body,
-          confidence: Math.floor(Math.random() * 21) + 80, // 80-100
+          confidence: 0,
           status: "draft" as const,
           approved: false,
           issues: [] as string[],

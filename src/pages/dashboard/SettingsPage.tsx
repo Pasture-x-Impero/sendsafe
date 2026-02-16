@@ -123,8 +123,6 @@ const SettingsPage = () => {
 
   const currentTone = profile?.tone ?? "professional";
   const currentGoal = profile?.goal ?? "sales";
-  const currentThreshold = profile?.autosend_threshold ?? 90;
-
   return (
     <div>
       <div className="mb-8">
@@ -353,22 +351,6 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Auto-send threshold */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.autosend.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.autosend.desc")}</p>
-          <div className="mt-4 flex items-center gap-4">
-            <input
-              type="range"
-              min={50}
-              max={100}
-              value={currentThreshold}
-              onChange={(e) => updateProfile.mutate({ autosend_threshold: Number(e.target.value) })}
-              className="h-2 w-64 cursor-pointer appearance-none rounded-full bg-border accent-primary"
-            />
-            <span className="font-heading text-lg font-bold text-foreground">{currentThreshold}</span>
-          </div>
-        </div>
       </div>
     </div>
   );

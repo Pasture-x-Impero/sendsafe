@@ -113,6 +113,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         api_key: smtpApiKey,
         to: [`${email.contact_name} <${recipient}>`],
+        bcc: [`${senderName} <${profile.smtp_sender_email}>`],
         sender: `${senderName} <${profile.smtp_sender_email}>`,
         subject: email.subject,
         html_body: htmlBody,

@@ -84,6 +84,22 @@ export function useSendEmail() {
   });
 }
 
+export function useDeleteEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (emailId: string) => {
+      const { error } = await supabase
+        .from("emails")
+        .delete()
+        .eq("id", emailId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
+  });
+}
+
 export function useUpdateEmail() {
   const queryClient = useQueryClient();
 

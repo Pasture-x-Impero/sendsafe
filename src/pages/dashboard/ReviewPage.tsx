@@ -1,10 +1,12 @@
-import { useState } from "react";
-import { ChevronLeft, ChevronRight, CheckCircle, Send, FlaskConical } from "lucide-react";
+import { useState, useMemo } from "react";
+import { CheckCircle, Send, FlaskConical, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import DOMPurify from "dompurify";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
-import { useEmails, useApproveEmail, useApproveAllEmails, useSendEmail, useUpdateEmail } from "@/hooks/use-emails";
+import { useEmails, useApproveEmail, useApproveAllEmails, useSendEmail, useUpdateEmail, useDeleteEmail } from "@/hooks/use-emails";
 import { toast } from "sonner";
+import type { Email } from "@/types/database";
 
 const statusColors: Record<string, string> = {
   draft: "bg-accent text-foreground",
@@ -12,6 +14,12 @@ const statusColors: Record<string, string> = {
   approved: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 };
+
+interface CampaignGroup {
+  campaignId: string | null;
+  label: string;
+  emails: Email[];
+}
 
 const ReviewPage = () => {
   const { t } = useLanguage();
@@ -22,45 +30,48 @@ const ReviewPage = () => {
   const approveAll = useApproveAllEmails();
   const sendEmail = useSendEmail();
   const updateEmail = useUpdateEmail();
+  const deleteEmail = useDeleteEmail();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
-
-  const current = emails[currentIndex];
-  const total = emails.length;
-
-  const goNext = () => setCurrentIndex((i) => Math.min(i + 1, total - 1));
-  const goPrev = () => setCurrentIndex((i) => Math.max(i - 1, 0));
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const hasSmtp = !!profile?.smtp_sender_email;
 
-  const handleApprove = async () => {
-    if (!current) return;
-    await approveEmail.mutateAsync(current.id);
+  // Group emails by campaign_id
+  const campaignGroups = useMemo<CampaignGroup[]>(() => {
+    const grouped = new Map<string | null, Email[]>();
+    for (const email of emails) {
+      const key = email.campaign_id;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(email);
+    }
+    const groups: CampaignGroup[] = [];
+    for (const [campaignId, groupEmails] of grouped) {
+      groups.push({
+        campaignId,
+        label: campaignId
+          ? `${t("review.campaign")}: ${campaignId.slice(0, 8)}…`
+          : t("review.noCampaign"),
+        emails: groupEmails,
+      });
+    }
+    return groups;
+  }, [emails, t]);
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
   const handleApproveAll = async () => {
     await approveAll.mutateAsync();
     toast.success(t("review.approveAll"));
-  };
-
-  const handleSend = async () => {
-    if (!current) return;
-    if (!hasSmtp) {
-      toast.error(t("review.smtpRequired"));
-      return;
-    }
-    setSending(true);
-    try {
-      await sendEmail.mutateAsync({ emailId: current.id });
-      toast.success(t("review.sent"));
-      if (currentIndex < total - 1) goNext();
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Send failed";
-      toast.error(message);
-    } finally {
-      setSending(false);
-    }
   };
 
   const handleSendAllApproved = async () => {
@@ -83,15 +94,54 @@ const ReviewPage = () => {
     toast.success(`${sent} ${t("review.sent")}`);
   };
 
-  const handleSendTest = async () => {
-    if (!current || !user) return;
+  const handleApprove = async (email: Email) => {
+    await approveEmail.mutateAsync(email.id);
+  };
+
+  const handleSend = async (email: Email) => {
     if (!hasSmtp) {
       toast.error(t("review.smtpRequired"));
       return;
     }
     setSending(true);
     try {
-      await sendEmail.mutateAsync({ emailId: current.id, testEmail: user.email! });
+      await sendEmail.mutateAsync({ emailId: email.id });
+      toast.success(t("review.sent"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Send failed";
+      toast.error(message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleApproveSend = async (email: Email) => {
+    if (!hasSmtp) {
+      toast.error(t("review.smtpRequired"));
+      return;
+    }
+    setSending(true);
+    try {
+      await approveEmail.mutateAsync(email.id);
+      await sendEmail.mutateAsync({ emailId: email.id });
+      toast.success(t("review.sent"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed";
+      toast.error(message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSendTest = async (email: Email) => {
+    if (!user) return;
+    if (!hasSmtp) {
+      toast.error(t("review.smtpRequired"));
+      return;
+    }
+    setSending(true);
+    try {
+      await sendEmail.mutateAsync({ emailId: email.id, testEmail: user.email! });
       toast.success(t("review.testSent"));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Send test failed";
@@ -101,35 +151,32 @@ const ReviewPage = () => {
     }
   };
 
-  const handleApproveSend = async () => {
-    if (!current) return;
-    if (!hasSmtp) {
-      toast.error(t("review.smtpRequired"));
+  const handleDelete = async (emailId: string) => {
+    if (confirmDeleteId !== emailId) {
+      setConfirmDeleteId(emailId);
       return;
     }
-    setSending(true);
     try {
-      await approveEmail.mutateAsync(current.id);
-      await sendEmail.mutateAsync({ emailId: current.id });
-      toast.success(t("review.sent"));
-      if (currentIndex < total - 1) goNext();
+      await deleteEmail.mutateAsync(emailId);
+      if (expandedId === emailId) setExpandedId(null);
+      setConfirmDeleteId(null);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed";
+      const message = err instanceof Error ? err.message : "Delete failed";
       toast.error(message);
-    } finally {
-      setSending(false);
     }
   };
 
-  const handleSubjectBlur = (value: string) => {
-    if (!current || value === current.subject) return;
-    updateEmail.mutate({ id: current.id, subject: value });
+  const handleSubjectBlur = (email: Email, value: string) => {
+    if (value === email.subject) return;
+    updateEmail.mutate({ id: email.id, subject: value });
   };
 
-  const handleBodyBlur = (value: string) => {
-    if (!current || value === current.body) return;
-    updateEmail.mutate({ id: current.id, body: value });
+  const handleBodyBlur = (email: Email, value: string) => {
+    if (value === email.body) return;
+    updateEmail.mutate({ id: email.id, body: value });
   };
+
+  const groupKey = (g: CampaignGroup) => g.campaignId ?? "__ungrouped";
 
   return (
     <div>
@@ -148,30 +195,12 @@ const ReviewPage = () => {
         </div>
       ) : (
         <>
-          {/* Top bar */}
+          {/* Top bar — bulk actions */}
           <div className="mb-6 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={goPrev}
-                disabled={currentIndex === 0}
-                className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-sm font-medium text-foreground">
-                {currentIndex + 1} {t("review.of")} {total}
-              </span>
-              <button
-                onClick={goNext}
-                disabled={currentIndex === total - 1}
-                className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-accent disabled:opacity-30"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
+            <span className="text-sm text-muted-foreground">
+              {emails.length} {emails.length === 1 ? "email" : "emails"}
+            </span>
             <div className="flex-1" />
-
             <button
               onClick={handleApproveAll}
               disabled={approveAll.isPending}
@@ -179,7 +208,6 @@ const ReviewPage = () => {
             >
               {t("review.approveAll")}
             </button>
-
             <button
               onClick={handleSendAllApproved}
               disabled={sending || !emails.some((e) => e.status === "approved")}
@@ -190,93 +218,177 @@ const ReviewPage = () => {
             </button>
           </div>
 
-          {current && (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Left: Email preview/edit */}
-              <div className="lg:col-span-2 rounded-xl border border-border bg-card p-6">
-                <div className="mb-4">
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.to")}</label>
-                  <div className="text-sm text-foreground">{current.contact_name} &lt;{current.contact_email}&gt;</div>
-                </div>
-
-                <div className="mb-4">
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.subject")}</label>
-                  <input
-                    key={current.id + "-subject"}
-                    defaultValue={current.subject}
-                    onBlur={(e) => handleSubjectBlur(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.body")}</label>
-                  <textarea
-                    key={current.id + "-body"}
-                    defaultValue={current.body}
-                    onBlur={(e) => handleBodyBlur(e.target.value)}
-                    rows={12}
-                    className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Right: Status & actions */}
-              <div className="space-y-4">
-                <div className="rounded-xl border border-border bg-card p-6">
-                  <div className="mb-4">
-                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.status")}</label>
-                    <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${statusColors[current.status] || ""}`}>
-                      {t(`review.status.${current.status}` as "review.status.draft")}
+          {/* Campaign groups */}
+          <div className="space-y-4">
+            {campaignGroups.map((group) => {
+              const key = groupKey(group);
+              const isCollapsed = collapsedGroups.has(key);
+              return (
+                <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
+                  {/* Group header */}
+                  <button
+                    onClick={() => toggleGroup(key)}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-foreground hover:bg-accent/50 transition-colors"
+                  >
+                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <span>{group.label}</span>
+                    <span className="ml-auto text-xs font-normal text-muted-foreground">
+                      {group.emails.length} {group.emails.length === 1 ? "email" : "emails"}
                     </span>
-                  </div>
+                  </button>
 
-                  <div className="mb-2 text-xs text-muted-foreground">
-                    {current.company} &middot; {current.contact_email}
-                  </div>
+                  {!isCollapsed && (
+                    <div>
+                      {/* Table header */}
+                      <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 border-t border-border bg-accent/30 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span>{t("review.colRecipient")}</span>
+                        <span>{t("review.colSubject")}</span>
+                        <span>{t("review.colStatus")}</span>
+                        <span>{t("review.colActions")}</span>
+                      </div>
 
-                  <div className="space-y-2">
-                    {current.status === "draft" || current.status === "needs_review" ? (
-                      <>
-                        <button
-                          onClick={handleApprove}
-                          disabled={approveEmail.isPending}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-                        >
-                          <CheckCircle className="h-4 w-4" /> {t("review.approve")}
-                        </button>
-                        <button
-                          onClick={handleApproveSend}
-                          disabled={sending}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                        >
-                          <Send className="h-4 w-4" /> {sending ? t("review.sending") : t("review.approveSend")}
-                        </button>
-                      </>
-                    ) : current.status === "approved" ? (
-                      <button
-                        onClick={handleSend}
-                        disabled={sending}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                      >
-                        <Send className="h-4 w-4" /> {sending ? t("review.sending") : t("review.send")}
-                      </button>
-                    ) : null}
+                      {/* Email rows */}
+                      {group.emails.map((email) => (
+                        <div key={email.id}>
+                          {/* Row */}
+                          <div
+                            onClick={() => setExpandedId(expandedId === email.id ? null : email.id)}
+                            className={`grid cursor-pointer grid-cols-[1fr_1fr_auto_auto] items-center gap-4 border-t border-border px-4 py-3 text-sm transition-colors hover:bg-accent/40 ${expandedId === email.id ? "bg-accent/20" : ""}`}
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate font-medium text-foreground">{email.contact_name}</div>
+                              <div className="truncate text-xs text-muted-foreground">{email.contact_email}</div>
+                            </div>
+                            <div className="truncate text-muted-foreground">{email.subject}</div>
+                            <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColors[email.status] || ""}`}>
+                              {t(`review.status.${email.status}` as "review.status.draft")}
+                            </span>
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {(email.status === "draft" || email.status === "needs_review") && (
+                                <button
+                                  onClick={() => handleApprove(email)}
+                                  disabled={approveEmail.isPending}
+                                  title={t("review.approve")}
+                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                              {email.status === "approved" && (
+                                <button
+                                  onClick={() => handleSend(email)}
+                                  disabled={sending}
+                                  title={t("review.send")}
+                                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                                >
+                                  <Send className="h-4 w-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDelete(email.id)}
+                                title={confirmDeleteId === email.id ? t("review.deleteConfirm") : t("review.delete")}
+                                className={`rounded-md p-1.5 transition-colors ${confirmDeleteId === email.id ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
 
-                    {current.status !== "sent" && (
-                      <button
-                        onClick={handleSendTest}
-                        disabled={sending}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
-                      >
-                        <FlaskConical className="h-4 w-4" /> {t("review.sendTest")}
-                      </button>
-                    )}
-                  </div>
+                          {/* Expanded detail panel */}
+                          {expandedId === email.id && (
+                            <div className="border-t border-border bg-accent/10 px-6 py-5">
+                              <div className="mb-4">
+                                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.subject")}</label>
+                                <input
+                                  key={email.id + "-subject"}
+                                  defaultValue={email.subject}
+                                  onBlur={(e) => handleSubjectBlur(email, e.target.value)}
+                                  className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+
+                              <div className="mb-4">
+                                <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.body")}</label>
+                                <textarea
+                                  key={email.id + "-body"}
+                                  defaultValue={email.body}
+                                  onBlur={(e) => handleBodyBlur(email, e.target.value)}
+                                  rows={10}
+                                  className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              </div>
+
+                              {/* Signature preview */}
+                              {profile?.email_signature && (
+                                <div className="mb-4">
+                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.signature")}</label>
+                                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                                    <hr className="mb-3 border-border" />
+                                    <div
+                                      className="prose prose-sm dark:prose-invert max-w-none text-sm"
+                                      dangerouslySetInnerHTML={{
+                                        __html: DOMPurify.sanitize(profile.email_signature),
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Action buttons */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {(email.status === "draft" || email.status === "needs_review") && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApprove(email)}
+                                      disabled={approveEmail.isPending}
+                                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                                    >
+                                      <CheckCircle className="h-4 w-4" /> {t("review.approve")}
+                                    </button>
+                                    <button
+                                      onClick={() => handleApproveSend(email)}
+                                      disabled={sending}
+                                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                    >
+                                      <Send className="h-4 w-4" /> {sending ? t("review.sending") : t("review.approveSend")}
+                                    </button>
+                                  </>
+                                )}
+                                {email.status === "approved" && (
+                                  <button
+                                    onClick={() => handleSend(email)}
+                                    disabled={sending}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                  >
+                                    <Send className="h-4 w-4" /> {sending ? t("review.sending") : t("review.send")}
+                                  </button>
+                                )}
+                                {email.status !== "sent" && (
+                                  <button
+                                    onClick={() => handleSendTest(email)}
+                                    disabled={sending}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                                  >
+                                    <FlaskConical className="h-4 w-4" /> {t("review.sendTest")}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDelete(email.id)}
+                                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${confirmDeleteId === email.id ? "bg-red-600 text-white hover:bg-red-700" : "border border-border bg-card text-foreground hover:bg-accent"}`}
+                                >
+                                  <Trash2 className="h-4 w-4" /> {confirmDeleteId === email.id ? t("review.deleteConfirm") : t("review.delete")}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
         </>
       )}
     </div>

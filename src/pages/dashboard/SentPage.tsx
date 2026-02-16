@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useEmails } from "@/hooks/use-emails";
@@ -32,7 +32,6 @@ const SentPage = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.company")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.contact")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.subject")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.confidence")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("sent.col.sent")}</th>
                 <th className="w-10 px-4 py-3" />
               </tr>
@@ -48,11 +47,6 @@ const SentPage = () => {
                     <td className="px-4 py-3 text-sm font-medium text-foreground">{email.company}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{email.contact_name}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{email.subject}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-sm text-success">
-                        <CheckCircle className="h-3.5 w-3.5" /> {email.confidence}
-                      </span>
-                    </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
                       {email.sent_at
                         ? formatDistanceToNow(new Date(email.sent_at), { addSuffix: true })
@@ -68,7 +62,7 @@ const SentPage = () => {
                   </tr>
                   {expandedId === email.id && (
                     <tr key={email.id + "-body"}>
-                      <td colSpan={6} className="border-b border-border bg-accent/20 px-6 py-4">
+                      <td colSpan={5} className="border-b border-border bg-accent/20 px-6 py-4">
                         <p className="whitespace-pre-wrap text-sm text-foreground">{email.body}</p>
                       </td>
                     </tr>

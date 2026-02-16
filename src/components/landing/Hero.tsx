@@ -78,7 +78,6 @@ const Hero = () => {
                   <span className="inline-flex items-center rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
                     {t("hero.approved")}
                   </span>
-                  <span className="text-sm text-muted-foreground">{t("hero.confidence")} <strong className="text-foreground">94/100</strong></span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2 rounded-lg bg-accent/50 p-3">
