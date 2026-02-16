@@ -21,14 +21,20 @@ export function useSenderDomain(senderEmail: string | null | undefined) {
     queryKey: ["sender-domain", domain],
     queryFn: async (): Promise<SenderDomain | null> => {
       if (!domain) return null;
-      const data = await callSenderDomain("view", domain);
-      // SMTP2GO returns domain info in data.domain or at top level
-      const d = data.data?.domain ?? data.domain;
-      if (!d) return null;
-      return d as SenderDomain;
+      try {
+        const data = await callSenderDomain("view", domain);
+        // SMTP2GO returns domain info in data.domain or at top level
+        const d = data.data?.domain ?? data.domain;
+        if (!d) return null;
+        return d as SenderDomain;
+      } catch {
+        // Domain API may be unavailable (e.g. API key lacks permission)
+        return null;
+      }
     },
     enabled: !!domain,
     staleTime: 30_000,
+    retry: false,
   });
 }
 
