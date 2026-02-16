@@ -76,9 +76,9 @@ const SettingsPage = () => {
         email_signature: sanitizedSignature || null,
       });
 
-      // Register domain with SMTP2GO when sender email changes
+      // Register domain with SMTP2GO when domain changes or isn't registered yet
       const newDomain = senderEmail?.split("@")[1];
-      if (newDomain && newDomain !== profile?.smtp_sender_email?.split("@")[1]) {
+      if (newDomain && (newDomain !== profile?.smtp_sender_email?.split("@")[1] || !domainInfo)) {
         try {
           await addDomain.mutateAsync(newDomain);
         } catch {
