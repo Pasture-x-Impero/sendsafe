@@ -11,6 +11,8 @@ interface GenerateEmailsInput {
   mode: CreateMode;
   campaignName: string;
   // AI mode
+  tone?: string;
+  goal?: string;
   instructions?: string;
   // Standard mode
   templateSubject?: string;
@@ -46,7 +48,7 @@ export function useGenerateEmails() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contactIds, contacts, mode, campaignName, instructions, templateSubject, templateBody }: GenerateEmailsInput) => {
+    mutationFn: async ({ contactIds, contacts, mode, campaignName, tone, goal, instructions, templateSubject, templateBody }: GenerateEmailsInput) => {
       if (!user) throw new Error("Not authenticated");
 
       const campaignId = crypto.randomUUID();

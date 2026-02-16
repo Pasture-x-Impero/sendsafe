@@ -315,15 +315,10 @@ const ReviewPage = () => {
                                   defaultValue={email.body}
                                   onBlur={(e) => handleBodyBlur(email, e.target.value)}
                                   rows={10}
-                                  className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                  className={`w-full ${profile?.email_signature ? "rounded-t-lg" : "rounded-lg"} border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary`}
                                 />
-                              </div>
-
-                              {/* Signature preview */}
-                              {profile?.email_signature && (
-                                <div className="mb-4">
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.signature")}</label>
-                                  <div className="rounded-lg border border-border bg-card px-3 py-2">
+                                {profile?.email_signature && (
+                                  <div className="rounded-b-lg border border-t-0 border-border bg-accent/10 px-3 py-2">
                                     <hr className="mb-3 border-border" />
                                     <div
                                       className="prose prose-sm dark:prose-invert max-w-none text-sm"
@@ -332,8 +327,8 @@ const ReviewPage = () => {
                                       }}
                                     />
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
 
                               {/* Action buttons */}
                               <div className="flex flex-wrap items-center gap-2">

@@ -1,10 +1,18 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Search, Sparkles, FileText } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
+import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
+
+const tones = ["professional", "friendly", "direct"] as const;
+const toneKeys = {
+  professional: "onboarding.tone.professional",
+  friendly: "onboarding.tone.friendly",
+  direct: "onboarding.tone.direct",
+} as const;
 
 const steps = ["step1", "step2", "step3"] as const;
 
@@ -12,6 +20,7 @@ const CreatePage = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { data: leads = [], isLoading } = useLeads();
+  const { data: profile } = useProfile();
   const { data: groups = [] } = useContactGroups();
   const { data: memberships = [] } = useGroupMemberships();
   const generateEmails = useGenerateEmails();
@@ -23,7 +32,17 @@ const CreatePage = () => {
   const [mode, setMode] = useState<CreateMode>("standard");
   const [campaignName, setCampaignName] = useState("");
   // AI mode
+  const [tone, setTone] = useState<string>("");
+  const [toneInitialized, setToneInitialized] = useState(false);
   const [instructions, setInstructions] = useState("");
+
+  // Initialize tone from profile default
+  useEffect(() => {
+    if (profile?.tone && !toneInitialized) {
+      setTone(profile.tone);
+      setToneInitialized(true);
+    }
+  }, [profile?.tone, toneInitialized]);
   // Standard mode
   const [templateSubject, setTemplateSubject] = useState("");
   const [templateBody, setTemplateBody] = useState("");
@@ -75,6 +94,8 @@ const CreatePage = () => {
       contacts: leads,
       mode,
       campaignName: campaignName.trim() || `Campaign ${new Date().toLocaleDateString()}`,
+      tone: mode === "ai" ? (tone || "professional") : undefined,
+      goal: mode === "ai" ? (profile?.goal || "sales") : undefined,
       instructions: mode === "ai" ? instructions : undefined,
       templateSubject: mode === "standard" ? templateSubject : undefined,
       templateBody: mode === "standard" ? templateBody : undefined,
@@ -256,14 +277,48 @@ const CreatePage = () => {
 
           {mode === "ai" ? (
             <>
-              <h3 className="mb-2 font-heading text-base font-semibold text-foreground">{t("create.instructions")}</h3>
-              <textarea
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                rows={8}
-                placeholder={t("create.instructionsPlaceholder")}
-                className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              {/* Tone selector */}
+              <div className="mb-5">
+                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.tone")}</label>
+                <div className="flex gap-3">
+                  {tones.map((t_) => (
+                    <button
+                      key={t_}
+                      onClick={() => setTone(t_)}
+                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                        tone === t_
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-border bg-accent text-foreground hover:border-primary/30"
+                      }`}
+                    >
+                      {t(toneKeys[t_])}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* System prompt preview */}
+              <div className="mb-5">
+                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.systemPrompt")}</label>
+                <div className="rounded-lg border border-border bg-accent/20 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line">
+                  {t(`create.systemPromptText.${tone || "professional"}` as "create.systemPromptText.professional")}
+                </div>
+              </div>
+
+              {/* User prompt / instructions */}
+              <div className="mb-5">
+                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.userPrompt")}</label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {t(`create.goalHint.${profile?.goal || "sales"}` as "create.goalHint.sales")}
+                </p>
+                <textarea
+                  value={instructions}
+                  onChange={(e) => setInstructions(e.target.value)}
+                  rows={6}
+                  placeholder={t("create.instructionsPlaceholder")}
+                  className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
             </>
           ) : (
             <>
