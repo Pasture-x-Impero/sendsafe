@@ -54,3 +54,18 @@ export interface ContactGroupMembership {
   group_id: string;
   created_at: string;
 }
+
+export interface DomainTracker {
+  subdomain: string;
+  verification_status: string;
+}
+
+export interface SenderDomain {
+  domain: string;
+  dkim_selector: string;
+  dkim_value: string;
+  dkim_verified: boolean;
+  rpath_selector: string;
+  rpath_verified: boolean;
+  trackers: DomainTracker[];
+}

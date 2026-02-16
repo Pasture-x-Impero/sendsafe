@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
 import { toast } from "sonner";
 
 const tones = ["professional", "friendly", "direct"] as const;
@@ -32,6 +33,13 @@ const SettingsPage = () => {
   const senderEmail = smtpSenderEmail ?? profile?.smtp_sender_email ?? "";
   const senderName = smtpSenderName ?? profile?.smtp_sender_name ?? "";
 
+  const addDomain = useAddSenderDomain();
+  const verifyDomain = useVerifySenderDomain();
+  const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.smtp_sender_email);
+  const [verifying, setVerifying] = useState(false);
+
+  const currentDomain = profile?.smtp_sender_email?.split("@")[1] ?? null;
+
   const handleSmtpSave = async () => {
     setSmtpSaving(true);
     try {
@@ -39,11 +47,34 @@ const SettingsPage = () => {
         smtp_sender_email: senderEmail || null,
         smtp_sender_name: senderName || null,
       });
+
+      // Register domain with SMTP2GO when sender email changes
+      const newDomain = senderEmail?.split("@")[1];
+      if (newDomain && newDomain !== profile?.smtp_sender_email?.split("@")[1]) {
+        try {
+          await addDomain.mutateAsync(newDomain);
+        } catch {
+          // Domain may already be registered - that's OK
+        }
+      }
+
       toast.success(t("settings.smtp.saved"));
     } catch {
       toast.error("Failed to save sender settings");
     } finally {
       setSmtpSaving(false);
+    }
+  };
+
+  const handleVerifyDomain = async () => {
+    if (!currentDomain) return;
+    setVerifying(true);
+    try {
+      await verifyDomain.mutateAsync(currentDomain);
+    } catch {
+      toast.error("Failed to verify domain");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -109,6 +140,107 @@ const SettingsPage = () => {
               {smtpSaving ? t("settings.smtp.saving") : t("settings.smtp.save")}
             </button>
           </div>
+
+          {/* Domain Verification */}
+          {profile?.smtp_sender_email && (
+            <div className="mt-6 border-t border-border pt-6">
+              <div className="flex items-center gap-3">
+                <h4 className="text-sm font-semibold text-foreground">{t("settings.domain.title")}</h4>
+                {domainInfo && (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      domainInfo.dkim_verified && domainInfo.rpath_verified
+                        ? "bg-green-500/10 text-green-600"
+                        : "bg-yellow-500/10 text-yellow-600"
+                    }`}
+                  >
+                    {domainInfo.dkim_verified && domainInfo.rpath_verified
+                      ? t("settings.domain.verified")
+                      : t("settings.domain.pending")}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{t("settings.domain.desc")}</p>
+
+              {domainLoading ? (
+                <div className="mt-4 flex justify-center py-4">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                </div>
+              ) : domainInfo ? (
+                <div className="mt-4">
+                  <p className="mb-3 text-sm font-medium text-foreground">{currentDomain}</p>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-border bg-accent/50">
+                        <tr>
+                          <th className="px-3 py-2 font-medium text-muted-foreground">{t("settings.domain.recordType")}</th>
+                          <th className="px-3 py-2 font-medium text-muted-foreground">{t("settings.domain.host")}</th>
+                          <th className="px-3 py-2 font-medium text-muted-foreground">{t("settings.domain.value")}</th>
+                          <th className="px-3 py-2 font-medium text-muted-foreground">{t("settings.domain.status")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {/* DKIM record */}
+                        <tr>
+                          <td className="px-3 py-2 font-mono text-xs">CNAME</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.dkim_selector}</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.dkim_value}</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              domainInfo.dkim_verified ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
+                            }`}>
+                              {domainInfo.dkim_verified ? t("settings.domain.verified") : t("settings.domain.pending")}
+                            </span>
+                          </td>
+                        </tr>
+                        {/* Return-path record */}
+                        <tr>
+                          <td className="px-3 py-2 font-mono text-xs">CNAME</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all">{domainInfo.rpath_selector}</td>
+                          <td className="px-3 py-2 font-mono text-xs break-all">return.smtp2go.net</td>
+                          <td className="px-3 py-2">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              domainInfo.rpath_verified ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
+                            }`}>
+                              {domainInfo.rpath_verified ? t("settings.domain.verified") : t("settings.domain.pending")}
+                            </span>
+                          </td>
+                        </tr>
+                        {/* Tracker records */}
+                        {domainInfo.trackers?.map((tracker, i) => (
+                          <tr key={i}>
+                            <td className="px-3 py-2 font-mono text-xs">CNAME</td>
+                            <td className="px-3 py-2 font-mono text-xs break-all">{tracker.subdomain}</td>
+                            <td className="px-3 py-2 font-mono text-xs break-all">track.smtp2go.net</td>
+                            <td className="px-3 py-2">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                tracker.verification_status === "verified" ? "bg-green-500/10 text-green-600" : "bg-yellow-500/10 text-yellow-600"
+                              }`}>
+                                {tracker.verification_status === "verified" ? t("settings.domain.verified") : t("settings.domain.pending")}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Show verify button when not fully verified */}
+                  {!(domainInfo.dkim_verified && domainInfo.rpath_verified) && (
+                    <button
+                      onClick={handleVerifyDomain}
+                      disabled={verifying}
+                      className="mt-4 rounded-lg border border-primary bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
+                    >
+                      {verifying ? t("settings.domain.verifying") : t("settings.domain.verify")}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">{t("settings.domain.notRegistered")}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tone */}
