@@ -3,11 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import type { SenderDomain } from "@/types/database";
 
 async function callSenderDomain(action: string, domain: string) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error("Not authenticated");
+  // Force a session refresh to get a valid access token
+  const { data: { session } } = await supabase.auth.refreshSession();
+  if (!session?.access_token) throw new Error("Not authenticated");
 
   const res = await supabase.functions.invoke("sender-domain", {
     body: { action, domain },
+    headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
   if (res.error) throw new Error(res.error.message);
@@ -27,7 +29,8 @@ export function useSenderDomain(senderEmail: string | null | undefined) {
         const d = data.data?.domain ?? data.domain;
         if (!d) return null;
         return d as SenderDomain;
-      } catch {
+      } catch (err) {
+        console.error("Domain view failed:", err);
         // Domain API may be unavailable (e.g. API key lacks permission)
         return null;
       }

@@ -81,7 +81,8 @@ const SettingsPage = () => {
       if (newDomain && (newDomain !== profile?.smtp_sender_email?.split("@")[1] || !domainInfo)) {
         try {
           await addDomain.mutateAsync(newDomain);
-        } catch {
+        } catch (domainErr) {
+          console.error("Domain registration failed:", domainErr);
           // Domain may already be registered - that's OK
         }
       }

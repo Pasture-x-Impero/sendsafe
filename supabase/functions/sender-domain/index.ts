@@ -75,6 +75,9 @@ Deno.serve(async (req) => {
 
     const smtpResult = await smtpResponse.json();
 
+    // Log for debugging
+    console.log(`sender-domain [${action}] ${domain}: status=${smtpResponse.status}`, JSON.stringify(smtpResult));
+
     return new Response(JSON.stringify(smtpResult), {
       status: smtpResponse.ok ? 200 : 502,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
