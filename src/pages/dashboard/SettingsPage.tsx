@@ -225,31 +225,32 @@ const SettingsPage = () => {
               <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.domain.domainLabel")}</label>
               <input
                 type="text"
-                value={domainInput || currentDomain || ""}
+                value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
                 className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="yourdomain.com"
+                placeholder={currentDomain || "yourdomain.com"}
               />
             </div>
             <button
               onClick={async () => {
-                const d = domainInput || currentDomain;
+                const d = domainInput.trim() || currentDomain;
                 if (!d) return;
                 setRegistering(true);
                 try {
                   await addDomain.mutateAsync(d);
-                  // Also save as sender email if no email set yet
-                  if (!profile?.smtp_sender_email) {
-                    await updateProfile.mutateAsync({ smtp_sender_email: `noreply@${d}` });
-                  }
+                  // Update sender email to use the new domain (keep local part or default to "noreply")
+                  const local = currentLocalPart || "noreply";
+                  await updateProfile.mutateAsync({ smtp_sender_email: `${local}@${d}` });
                   setDomainInput("");
+                  setSenderLocalPart(null);
+                  toast.success(t("settings.domain.registered"));
                 } catch {
                   toast.error("Failed to register domain");
                 } finally {
                   setRegistering(false);
                 }
               }}
-              disabled={registering || !(domainInput || currentDomain)}
+              disabled={registering || !(domainInput.trim() || currentDomain)}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {registering ? t("settings.domain.registering") : t("settings.domain.register")}
