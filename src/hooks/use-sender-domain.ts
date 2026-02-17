@@ -67,7 +67,10 @@ export function useSenderDomain(senderEmail: string | null | undefined) {
       if (!domain) return null;
       try {
         const data = await callSenderDomain("view", domain);
-        return parseDomainResponse(data);
+        console.log("Domain view raw response:", JSON.stringify(data));
+        const parsed = parseDomainResponse(data);
+        console.log("Domain view parsed:", parsed);
+        return parsed;
       } catch (err) {
         console.error("Domain view failed:", err);
         return null;
