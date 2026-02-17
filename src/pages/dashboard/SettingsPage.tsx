@@ -29,8 +29,8 @@ const goalKeys = {
   other: "onboarding.goal.other",
 } as const;
 
-const PLAN_SEND_LIMITS: Record<string, number> = { free: 10, starter: 300, pro: 300 };
-const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 1000 };
+const PLAN_SEND_LIMITS: Record<string, number> = { free: 10, starter: 300, pro: 1000 };
+const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 500 };
 const PLAN_PRICES: Record<string, string> = { free: "0 kr", starter: "299 kr", pro: "799 kr" };
 
 const SettingsPage = () => {
@@ -236,7 +236,7 @@ const SettingsPage = () => {
             </div>
             <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
               {t(`plan.${plan}` as "plan.free")} — {PLAN_PRICES[plan]}
-              {plan !== "free" && <span className="ml-1 text-xs font-normal text-muted-foreground">/ {t("pricing.period")}</span>}
+              {plan !== "free" && <span className="ml-1 text-xs font-normal text-muted-foreground">{t("pricing.period")}</span>}
             </span>
           </div>
 
@@ -308,10 +308,10 @@ const SettingsPage = () => {
                   <p className="font-heading text-sm font-semibold text-foreground">{t(`plan.${tier}` as "plan.free")}</p>
                   <p className="mt-0.5 text-lg font-bold text-foreground">
                     {PLAN_PRICES[tier]}
-                    {tier !== "free" && <span className="text-xs font-normal text-muted-foreground"> / {t("pricing.period")}</span>}
+                    {tier !== "free" && <span className="text-xs font-normal text-muted-foreground"> {t("pricing.period")}</span>}
                   </p>
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                    <li>{PLAN_SEND_LIMITS[tier]} {t("settings.plan.sends").toLowerCase()} / {t("pricing.period")}</li>
+                    <li>{PLAN_SEND_LIMITS[tier]} {t("settings.plan.sends").toLowerCase()} {t("pricing.period")}</li>
                     <li>{PLAN_AI_LIMITS[tier] === 0 ? "—" : `${PLAN_AI_LIMITS[tier]} ${t("settings.plan.aiCredits").toLowerCase()}`}</li>
                     <li>{tier === "free" ? t("pricing.feature.standardOnly") : t("pricing.feature.customDomain")}</li>
                   </ul>
@@ -319,7 +319,10 @@ const SettingsPage = () => {
                     <span className="mt-3 block text-center text-xs font-medium text-primary">{t("settings.plan.current")}</span>
                   ) : (
                     <button
-                      onClick={() => updateProfile.mutate({ plan: tier })}
+                      onClick={() => updateProfile.mutate({ plan: tier }, {
+                        onSuccess: () => toast.success(t("settings.plan.upgraded")),
+                        onError: (err) => toast.error(err.message),
+                      })}
                       className={`mt-3 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                         tier === "free"
                           ? "border border-border bg-accent text-foreground hover:bg-accent/80"

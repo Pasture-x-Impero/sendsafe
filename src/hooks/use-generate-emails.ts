@@ -43,7 +43,7 @@ function generateStandardEmail(
   };
 }
 
-const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 1000 };
+const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 500 };
 
 export function useGenerateEmails() {
   const { user } = useAuth();

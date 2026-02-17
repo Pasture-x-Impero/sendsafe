@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     }
 
     // Check monthly send limit
-    const planSendLimits: Record<string, number> = { free: 10, starter: 300, pro: 300 };
+    const planSendLimits: Record<string, number> = { free: 10, starter: 300, pro: 1000 };
     const sendLimit = planSendLimits[profile.plan] ?? 10;
 
     const { count: sentThisMonth } = await supabase
