@@ -19,43 +19,61 @@ async function callSenderDomain(action: string, domain: string) {
 function parseDomainResponse(data: unknown): SenderDomain | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
-
-  // Try to find domain info — SMTP2GO responses vary by endpoint:
-  // - add:    { data: { domain: "x", dkim_selector: "...", ... } }
-  // - view:   { data: { domains: [ { domain: "x", ... } ] } } or { data: { domain: { ... } } }
-  // - verify: { data: { domain: "x", ... } }
-  const candidates: unknown[] = [];
-
   const dataObj = obj.data as Record<string, unknown> | undefined;
+
+  // SMTP2GO view returns: { data: { domains: [{ domain: { dkim_selector, ... }, trackers: [...] }] } }
+  // SMTP2GO add returns:  { data: { domain: "x", dkim_selector: "...", ... } }
+  // We need to find the object with dkim_selector and merge trackers
+
+  let domainObj: Record<string, unknown> | null = null;
+  let trackersRaw: unknown[] = [];
+
   if (dataObj && typeof dataObj === "object") {
-    // Check data.domains array (view endpoint)
+    // View: data.domains[0].domain + data.domains[0].trackers
     if (Array.isArray(dataObj.domains) && dataObj.domains.length > 0) {
-      candidates.push(dataObj.domains[0]);
+      const entry = dataObj.domains[0] as Record<string, unknown>;
+      if (entry.domain && typeof entry.domain === "object") {
+        domainObj = entry.domain as Record<string, unknown>;
+      } else if (entry.dkim_selector) {
+        domainObj = entry;
+      }
+      if (Array.isArray(entry.trackers)) {
+        trackersRaw = entry.trackers;
+      }
     }
-    // Check data.domain as object
-    if (dataObj.domain && typeof dataObj.domain === "object") {
-      candidates.push(dataObj.domain);
+    // Add/verify: data.domain is a string, fields at data level
+    if (!domainObj && dataObj.dkim_selector) {
+      domainObj = dataObj;
     }
-    // Check data itself (add/verify: fields at data level)
-    candidates.push(dataObj);
-  }
-  // Check top-level domain object
-  if (obj.domain && typeof obj.domain === "object") {
-    candidates.push(obj.domain);
-  }
-  // Check top level
-  candidates.push(obj);
-
-  for (const c of candidates) {
-    if (!c || typeof c !== "object") continue;
-    const rec = c as Record<string, unknown>;
-    if (rec.dkim_selector || rec.dkim_value) {
-      return rec as unknown as SenderDomain;
+    // data.domain as nested object
+    if (!domainObj && dataObj.domain && typeof dataObj.domain === "object") {
+      domainObj = dataObj.domain as Record<string, unknown>;
     }
   }
 
-  console.warn("parseDomainResponse: could not find domain info in", JSON.stringify(data));
-  return null;
+  if (!domainObj) {
+    console.warn("parseDomainResponse: could not find domain info in", JSON.stringify(data).slice(0, 500));
+    return null;
+  }
+
+  // Normalize trackers: SMTP2GO uses fulldomain/subdomain + cname_verified
+  const trackers = trackersRaw.map((t) => {
+    const tr = t as Record<string, unknown>;
+    return {
+      subdomain: (tr.fulldomain || tr.subdomain || "") as string,
+      verification_status: tr.cname_verified ? "verified" : "pending",
+    };
+  });
+
+  return {
+    domain: (domainObj.fulldomain || domainObj.domain || "") as string,
+    dkim_selector: (domainObj.dkim_selector || "") as string,
+    dkim_value: (domainObj.dkim_value || domainObj.dkim_expected || "") as string,
+    dkim_verified: !!domainObj.dkim_verified,
+    rpath_selector: (domainObj.rpath_selector || "") as string,
+    rpath_verified: !!domainObj.rpath_verified,
+    trackers,
+  } as SenderDomain;
 }
 
 export function useSenderDomain(senderEmail: string | null | undefined) {
