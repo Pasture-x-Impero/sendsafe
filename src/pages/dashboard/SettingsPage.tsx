@@ -359,32 +359,6 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Email Preview */}
-        {currentSignature && (
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
-            <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
-              <p className="whitespace-pre-line text-sm text-foreground">
-                {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
-              </p>
-              <hr className="my-4 border-border" />
-              <div
-                className="text-sm text-foreground"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
-              />
-              {plan === "free" && (
-                <>
-                  <hr className="my-4 border-border" />
-                  <p className="text-xs text-muted-foreground">
-                    Want to know how this email was sent? Check out: <a href="https://sendsafe.pasture.zone" target="_blank" rel="noopener noreferrer" className="text-primary underline">sendsafe.pasture.zone</a>
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* Domain Verification — only for Starter/Pro */}
         {plan !== "free" && (
         <div className="rounded-xl border border-border bg-card p-6">
@@ -605,6 +579,32 @@ const SettingsPage = () => {
             </button>
           </div>
         </div>
+
+        {/* Email Preview */}
+        {currentSignature && (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
+            <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
+              <p className="whitespace-pre-line text-sm text-foreground">
+                {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
+              </p>
+              <hr className="my-4 border-border" />
+              <div
+                className="text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
+              />
+              {plan === "free" && (
+                <>
+                  <hr className="my-4 border-border" />
+                  <p className="text-xs text-muted-foreground">
+                    Want to know how this email was sent? Check out: <a href="https://sendsafe.pasture.zone" target="_blank" rel="noopener noreferrer" className="text-primary underline">sendsafe.pasture.zone</a>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tone */}
         <div className="rounded-xl border border-border bg-card p-6">
