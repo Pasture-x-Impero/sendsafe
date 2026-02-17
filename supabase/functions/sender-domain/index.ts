@@ -78,8 +78,8 @@ Deno.serve(async (req) => {
         .eq("id", user.id)
         .single();
 
-      if (!profile || profile.plan === "free") {
-        return new Response(JSON.stringify({ error: "Upgrade to Starter to use a custom domain" }), {
+      if (!profile || profile.plan !== "pro") {
+        return new Response(JSON.stringify({ error: "Upgrade to Pro to use a custom domain" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
