@@ -173,7 +173,9 @@ const SettingsPage = () => {
   const handleSmtpSave = async () => {
     setSmtpSaving(true);
     try {
-      const fullEmail = currentLocalPart && currentDomain ? `${currentLocalPart}@${currentDomain}` : null;
+      const localPart = plan === "free" ? (senderLocalPart ?? "noreply") : currentLocalPart;
+      const domain = plan === "free" ? "pasture.cloud" : currentDomain;
+      const fullEmail = localPart && domain ? `${localPart}@${domain}` : null;
       const sanitizedSignature = currentSignature ? DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) : null;
       await updateProfile.mutateAsync({
         smtp_sender_email: fullEmail,
@@ -354,15 +356,56 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Domain Verification */}
+        {/* Tone */}
         <div className="rounded-xl border border-border bg-card p-6">
-          {profile?.plan === "free" ? (
-            <>
-              <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.domain.title")}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{t("plan.domainDisabled")}</p>
-            </>
-          ) : (
-          <>
+          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.tone.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t("settings.tone.desc")}</p>
+          <div className="mt-4 flex gap-3">
+            {tones.map((tone) => (
+              <button
+                key={tone}
+                onClick={() => updateProfile.mutate({ tone })}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  currentTone === tone
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border bg-accent text-foreground hover:border-primary/30"
+                }`}
+              >
+                {t(toneKeys[tone])}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Email Preview */}
+        {currentSignature && (
+          <div className="rounded-xl border border-border bg-card p-6">
+            <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
+            <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
+              <p className="whitespace-pre-line text-sm text-foreground">
+                {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
+              </p>
+              <hr className="my-4 border-border" />
+              <div
+                className="text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
+              />
+              {plan === "free" && (
+                <>
+                  <hr className="my-4 border-border" />
+                  <p className="text-xs text-muted-foreground">
+                    Want to know how this email was sent? Check out: <a href="https://sendsafe.pasture.zone" target="_blank" rel="noopener noreferrer" className="text-primary underline">sendsafe.pasture.zone</a>
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Domain Verification — only for Starter/Pro */}
+        {plan !== "free" && (
+        <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-3">
             <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.domain.title")}</h3>
             {domainInfo && (
@@ -508,9 +551,8 @@ const SettingsPage = () => {
               <p className="text-sm text-muted-foreground">{t("settings.domain.notRegistered")}</p>
             </div>
           ) : null}
-          </>
-          )}
         </div>
+        )}
 
         {/* Sender Configuration */}
         <div className="rounded-xl border border-border bg-card p-6">
@@ -523,13 +565,13 @@ const SettingsPage = () => {
               <div className="flex items-center gap-0">
                 <input
                   type="text"
-                  value={currentLocalPart}
+                  value={plan === "free" ? (senderLocalPart ?? "noreply") : currentLocalPart}
                   onChange={(e) => setSenderLocalPart(e.target.value)}
                   className="flex-1 rounded-l-lg border border-r-0 border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="noreply"
                 />
                 <span className="rounded-r-lg border border-border bg-accent/50 px-3 py-2 text-sm text-muted-foreground">
-                  @{currentDomain || t("settings.domain.noDomain")}
+                  @{plan === "free" ? "pasture.cloud" : (currentDomain || t("settings.domain.noDomain"))}
                 </span>
               </div>
             </div>
@@ -565,56 +607,22 @@ const SettingsPage = () => {
                   {t("settings.signature.clear")}
                 </button>
               )}
+              {plan === "free" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {t("settings.signature.freeNotice")}
+                </p>
+              )}
             </div>
 
             <button
               onClick={handleSmtpSave}
-              disabled={smtpSaving || !currentDomain}
+              disabled={smtpSaving || (plan !== "free" && !currentDomain)}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {smtpSaving ? t("settings.smtp.saving") : t("settings.smtp.save")}
             </button>
           </div>
         </div>
-
-        {/* Tone */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.tone.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.tone.desc")}</p>
-          <div className="mt-4 flex gap-3">
-            {tones.map((tone) => (
-              <button
-                key={tone}
-                onClick={() => updateProfile.mutate({ tone })}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                  currentTone === tone
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border bg-accent text-foreground hover:border-primary/30"
-                }`}
-              >
-                {t(toneKeys[tone])}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Email Preview */}
-        {currentSignature && (
-          <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
-            <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
-              <p className="whitespace-pre-line text-sm text-foreground">
-                {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
-              </p>
-              <hr className="my-4 border-border" />
-              <div
-                className="text-sm text-foreground"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
-              />
-            </div>
-          </div>
-        )}
 
 
       </div>

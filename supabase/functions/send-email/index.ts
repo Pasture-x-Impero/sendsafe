@@ -128,6 +128,12 @@ Deno.serve(async (req) => {
       textBody += "\n\n---\n" + textSignature;
     }
 
+    // Free plan: append SendSafe promo line
+    if (isFree) {
+      htmlBody += '<br><br><p style="font-size:11px;color:#888;">Want to know how this email was sent? Check out: <a href="https://sendsafe.pasture.zone">sendsafe.pasture.zone</a></p>';
+      textBody += "\n\nWant to know how this email was sent? Check out: https://sendsafe.pasture.zone";
+    }
+
     // Call SMTP2GO API
     const smtpResponse = await fetch("https://api.smtp2go.com/v3/email/send", {
       method: "POST",
