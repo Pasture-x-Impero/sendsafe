@@ -135,32 +135,69 @@ const SettingsPage = () => {
   }, []);
 
   const handleSignaturePaste = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
     const html = e.clipboardData.getData("text/html");
-    if (html) {
-      e.preventDefault();
-      const cleaned = cleanOutlookHtml(html);
-      if (signatureRef.current) {
-        signatureRef.current.innerHTML = cleaned;
-        setSignatureHtml(cleaned);
-      }
-      return;
-    }
+    const imageFiles = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith("image/"));
 
-    // Handle raw image paste (screenshot / copied image file)
-    const files = e.clipboardData.files;
-    if (files.length > 0) {
-      const imageFile = Array.from(files).find((f) => f.type.startsWith("image/"));
-      if (imageFile) {
-        e.preventDefault();
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (signatureRef.current && typeof reader.result === "string") {
-            const img = `<img src="${reader.result}" style="max-width:100%;" />`;
-            signatureRef.current.innerHTML += img;
-            setSignatureHtml(signatureRef.current.innerHTML);
+    if (html) {
+      const cleaned = cleanOutlookHtml(html);
+
+      if (imageFiles.length > 0) {
+        // HTML + images: replace broken img srcs with base64 from clipboard files
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = cleaned;
+        const imgs = Array.from(tempDiv.querySelectorAll("img"));
+        // Find images with non-http sources (local/cid/relative paths)
+        const brokenImgs = imgs.filter((img) => {
+          const src = img.getAttribute("src") || "";
+          return !src.startsWith("http") && !src.startsWith("data:");
+        });
+
+        Promise.all(
+          imageFiles.map(
+            (f) =>
+              new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(f);
+              })
+          )
+        ).then((dataUris) => {
+          brokenImgs.forEach((img, i) => {
+            if (i < dataUris.length) {
+              img.setAttribute("src", dataUris[i]);
+            }
+          });
+          const result = tempDiv.innerHTML;
+          if (signatureRef.current) {
+            signatureRef.current.innerHTML = result;
+            setSignatureHtml(result);
           }
-        };
-        reader.readAsDataURL(imageFile);
+        });
+      } else {
+        // HTML only (images already have valid http/data URLs)
+        if (signatureRef.current) {
+          signatureRef.current.innerHTML = cleaned;
+          setSignatureHtml(cleaned);
+        }
+      }
+    } else if (imageFiles.length > 0) {
+      // Raw image paste (screenshot / copied image file)
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (signatureRef.current && typeof reader.result === "string") {
+          const img = `<img src="${reader.result}" style="max-width:100%;" />`;
+          signatureRef.current.innerHTML += img;
+          setSignatureHtml(signatureRef.current.innerHTML);
+        }
+      };
+      reader.readAsDataURL(imageFiles[0]);
+    } else {
+      // Plain text fallback
+      const text = e.clipboardData.getData("text/plain");
+      if (text && signatureRef.current) {
+        signatureRef.current.innerHTML += text.replace(/\n/g, "<br>");
+        setSignatureHtml(signatureRef.current.innerHTML);
       }
     }
   }, [cleanOutlookHtml]);
