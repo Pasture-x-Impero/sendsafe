@@ -103,12 +103,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Free and Starter users send from pasture.cloud; only Pro uses custom domain
-    const useDefaultSender = profile.plan !== "pro";
-    const senderEmail = useDefaultSender ? "noreply@pasture.cloud" : profile.smtp_sender_email;
-    const senderName = useDefaultSender ? (profile.smtp_sender_name || "SendSafe") : (profile.smtp_sender_name || "SendSafe");
+    // Free users send from pasture.cloud; Starter and Pro use custom domain
+    const isFree = profile.plan === "free";
+    const senderEmail = isFree ? "noreply@pasture.cloud" : profile.smtp_sender_email;
+    const senderName = isFree ? "SendSafe" : (profile.smtp_sender_name || "SendSafe");
 
-    if (!useDefaultSender && !profile.smtp_sender_email) {
+    if (!isFree && !profile.smtp_sender_email) {
       return new Response(JSON.stringify({ error: "Sender email not configured. Set your sender email in Settings." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

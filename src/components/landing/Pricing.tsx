@@ -22,7 +22,7 @@ const Pricing = () => {
       price: "299 kr",
       hasPeriod: true,
       descKey: "pricing.starter.desc" as TranslationKey,
-      featureKeys: ["pricing.feature.100credits", "pricing.feature.300sends", "pricing.feature.sharedDomain", "pricing.feature.emailSupport"] as TranslationKey[],
+      featureKeys: ["pricing.feature.100credits", "pricing.feature.300sends", "pricing.feature.customDomain", "pricing.feature.emailSupport"] as TranslationKey[],
       ctaKey: "pricing.starter.cta" as TranslationKey,
       highlighted: true,
     },

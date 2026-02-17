@@ -147,7 +147,7 @@ const SettingsPage = () => {
 
   const addDomain = useAddSenderDomain();
   const verifyDomain = useVerifySenderDomain();
-  const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.plan === "pro" ? profile?.smtp_sender_email : null);
+  const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.plan === "free" ? null : profile?.smtp_sender_email);
   const [verifying, setVerifying] = useState(false);
   const [registering, setRegistering] = useState(false);
 
@@ -311,7 +311,7 @@ const SettingsPage = () => {
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                     <li>{PLAN_SEND_LIMITS[tier]} {t("settings.plan.sends").toLowerCase()} / {t("pricing.period")}</li>
                     <li>{PLAN_AI_LIMITS[tier] === 0 ? "—" : `${PLAN_AI_LIMITS[tier]} ${t("settings.plan.aiCredits").toLowerCase()}`}</li>
-                    <li>{tier === "pro" ? t("pricing.feature.customDomain") : tier === "starter" ? t("pricing.feature.sharedDomain") : t("pricing.feature.standardOnly")}</li>
+                    <li>{tier === "free" ? t("pricing.feature.standardOnly") : t("pricing.feature.customDomain")}</li>
                   </ul>
                   {isCurrent ? (
                     <span className="mt-3 block text-center text-xs font-medium text-primary">{t("settings.plan.current")}</span>
@@ -356,7 +356,7 @@ const SettingsPage = () => {
 
         {/* Domain Verification */}
         <div className="rounded-xl border border-border bg-card p-6">
-          {profile?.plan !== "pro" ? (
+          {profile?.plan === "free" ? (
             <>
               <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.domain.title")}</h3>
               <p className="mt-2 text-sm text-muted-foreground">{t("plan.domainDisabled")}</p>
