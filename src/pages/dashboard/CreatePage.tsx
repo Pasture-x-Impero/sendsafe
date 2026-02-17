@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Search, Sparkles, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, Sparkles, FileText, Lock } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
 import { useProfile } from "@/hooks/use-profile";
@@ -230,16 +230,25 @@ const CreatePage = () => {
               <span className="text-xs text-muted-foreground">{t("create.modeStandardDesc")}</span>
             </button>
             <button
-              onClick={() => setMode("ai")}
+              onClick={() => { if (profile?.plan !== "free") setMode("ai"); }}
+              disabled={profile?.plan === "free"}
               className={`flex flex-col items-start gap-2 rounded-xl border-2 p-5 text-left transition-colors ${
-                mode === "ai"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/30"
+                profile?.plan === "free"
+                  ? "cursor-not-allowed border-border opacity-60"
+                  : mode === "ai"
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/30"
               }`}
             >
-              <Sparkles className={`h-6 w-6 ${mode === "ai" ? "text-primary" : "text-muted-foreground"}`} />
+              {profile?.plan === "free" ? (
+                <Lock className="h-6 w-6 text-muted-foreground" />
+              ) : (
+                <Sparkles className={`h-6 w-6 ${mode === "ai" ? "text-primary" : "text-muted-foreground"}`} />
+              )}
               <span className="font-heading text-sm font-semibold text-foreground">{t("create.modeAi")}</span>
-              <span className="text-xs text-muted-foreground">{t("create.modeAiDesc")}</span>
+              <span className="text-xs text-muted-foreground">
+                {profile?.plan === "free" ? t("plan.aiDisabled") : t("create.modeAiDesc")}
+              </span>
             </button>
           </div>
 

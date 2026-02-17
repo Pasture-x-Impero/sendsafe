@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Fetch user's sender settings from profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("smtp_sender_email, smtp_sender_name, email_signature")
+      .select("smtp_sender_email, smtp_sender_name, email_signature, plan")
       .eq("id", user.id)
       .single();
 
@@ -85,7 +85,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!profile.smtp_sender_email) {
+    // Check monthly send limit
+    const planSendLimits: Record<string, number> = { free: 10, starter: 300, pro: 300 };
+    const sendLimit = planSendLimits[profile.plan] ?? 10;
+
+    const { count: sentThisMonth } = await supabase
+      .from("emails")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "sent")
+      .gte("sent_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString());
+
+    if ((sentThisMonth ?? 0) >= sendLimit) {
+      return new Response(JSON.stringify({ error: "Monthly send limit reached. Upgrade your plan for more sends." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Free users send from pasture.cloud regardless of their settings
+    const isFree = profile.plan === "free";
+    const senderEmail = isFree ? "noreply@pasture.cloud" : profile.smtp_sender_email;
+    const senderName = isFree ? "SendSafe" : (profile.smtp_sender_name || "SendSafe");
+
+    if (!isFree && !profile.smtp_sender_email) {
       return new Response(JSON.stringify({ error: "Sender email not configured. Set your sender email in Settings." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -93,7 +116,6 @@ Deno.serve(async (req) => {
     }
 
     const recipient = test_email || email.contact_email;
-    const senderName = profile.smtp_sender_name || "SendSafe";
 
     // Build email body, appending signature if present
     let htmlBody = email.body.replace(/\n/g, "<br>");
@@ -113,8 +135,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         api_key: smtpApiKey,
         to: [`${email.contact_name} <${recipient}>`],
-        bcc: [`${senderName} <${profile.smtp_sender_email}>`],
-        sender: `${senderName} <${profile.smtp_sender_email}>`,
+        bcc: [`${senderName} <${senderEmail}>`],
+        sender: `${senderName} <${senderEmail}>`,
         subject: email.subject,
         html_body: htmlBody,
         text_body: textBody,

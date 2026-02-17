@@ -70,6 +70,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // Block domain registration for free users
+    if (action === "add") {
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.plan === "free") {
+        return new Response(JSON.stringify({ error: "Upgrade to Starter to use a custom domain" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Check domain ownership on add/verify/view
     if (action === "add") {
       // Check if domain is already claimed by another user

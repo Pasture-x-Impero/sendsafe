@@ -82,6 +82,7 @@ export type Database = {
           contact_email: string
           contact_name: string
           created_at: string
+          generation_mode: string | null
           id: string
           issues: string[]
           lead_id: string | null
@@ -102,6 +103,7 @@ export type Database = {
           contact_email: string
           contact_name: string
           created_at?: string
+          generation_mode?: string | null
           id?: string
           issues?: string[]
           lead_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
           contact_email?: string
           contact_name?: string
           created_at?: string
+          generation_mode?: string | null
           id?: string
           issues?: string[]
           lead_id?: string | null
@@ -180,6 +183,7 @@ export type Database = {
           goal: string
           id: string
           onboarding_completed: boolean
+          plan: string
           smtp_api_key: string | null
           smtp_sender_email: string | null
           smtp_sender_name: string | null
@@ -193,6 +197,7 @@ export type Database = {
           goal?: string
           id: string
           onboarding_completed?: boolean
+          plan?: string
           smtp_api_key?: string | null
           smtp_sender_email?: string | null
           smtp_sender_name?: string | null
@@ -206,6 +211,7 @@ export type Database = {
           goal?: string
           id?: string
           onboarding_completed?: boolean
+          plan?: string
           smtp_api_key?: string | null
           smtp_sender_email?: string | null
           smtp_sender_name?: string | null

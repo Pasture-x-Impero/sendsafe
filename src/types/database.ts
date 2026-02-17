@@ -1,5 +1,6 @@
 export interface Profile {
   id: string;
+  plan: "free" | "starter" | "pro";
   tone: "professional" | "friendly" | "direct";
   goal: "sales" | "partnerships" | "recruiting" | "other";
   autosend_threshold: number;
@@ -38,6 +39,7 @@ export interface Email {
   suggestions: string | null;
   campaign_id: string | null;
   campaign_name: string | null;
+  generation_mode: "ai" | "standard" | null;
   sent_at: string | null;
   created_at: string;
   updated_at: string;

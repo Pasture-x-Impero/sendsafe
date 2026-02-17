@@ -43,6 +43,8 @@ function generateStandardEmail(
   };
 }
 
+const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 1000 };
+
 export function useGenerateEmails() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -50,6 +52,35 @@ export function useGenerateEmails() {
   return useMutation({
     mutationFn: async ({ contactIds, contacts, mode, campaignName, tone, goal, instructions, templateSubject, templateBody }: GenerateEmailsInput) => {
       if (!user) throw new Error("Not authenticated");
+
+      // Check AI credit limit for AI mode
+      if (mode === "ai") {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan")
+          .eq("id", user.id)
+          .single();
+
+        const plan = profile?.plan ?? "free";
+        const aiLimit = PLAN_AI_LIMITS[plan] ?? 0;
+
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+        const { count: aiUsed } = await supabase
+          .from("emails")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("generation_mode", "ai")
+          .gte("created_at", startOfMonth);
+
+        const remaining = aiLimit - (aiUsed ?? 0);
+        if (contactIds.length > remaining) {
+          throw new Error(
+            remaining <= 0
+              ? "Monthly AI credit limit reached. Upgrade your plan for more AI credits."
+              : `Only ${remaining} AI credits remaining this month. Select fewer contacts or upgrade your plan.`
+          );
+        }
+      }
 
       const campaignId = crypto.randomUUID();
       const selectedContacts = contacts.filter((c) => contactIds.includes(c.id));
@@ -75,6 +106,7 @@ export function useGenerateEmails() {
           suggestions: null,
           campaign_id: campaignId,
           campaign_name: campaignName,
+          generation_mode: mode,
         };
       });
 

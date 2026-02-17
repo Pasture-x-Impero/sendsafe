@@ -201,6 +201,13 @@ const SettingsPage = () => {
 
         {/* Domain Verification */}
         <div className="rounded-xl border border-border bg-card p-6">
+          {profile?.plan === "free" ? (
+            <>
+              <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.domain.title")}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{t("plan.domainDisabled")}</p>
+            </>
+          ) : (
+          <>
           <div className="flex items-center gap-3">
             <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.domain.title")}</h3>
             {domainInfo && (
@@ -346,6 +353,8 @@ const SettingsPage = () => {
               <p className="text-sm text-muted-foreground">{t("settings.domain.notRegistered")}</p>
             </div>
           ) : null}
+          </>
+          )}
         </div>
 
         {/* Sender Configuration */}
