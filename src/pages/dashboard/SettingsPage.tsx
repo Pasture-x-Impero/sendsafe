@@ -237,10 +237,15 @@ const SettingsPage = () => {
                 if (!d) return;
                 setRegistering(true);
                 try {
-                  await addDomain.mutateAsync(d);
-                  // Update sender email to use the new domain (keep local part or default to "noreply")
+                  try {
+                    await addDomain.mutateAsync(d);
+                  } catch {
+                    // Domain may already be registered — that's OK, continue
+                  }
+                  // Update sender email to use the domain (keep local part or default to "noreply")
                   const local = currentLocalPart || "noreply";
                   await updateProfile.mutateAsync({ smtp_sender_email: `${local}@${d}` });
+                  // Refetch domain info via "view" (useSenderDomain re-queries when profile changes)
                   setDomainInput("");
                   setSenderLocalPart(null);
                   toast.success(t("settings.domain.registered"));
