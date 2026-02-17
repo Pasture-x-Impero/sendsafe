@@ -239,13 +239,18 @@ const SettingsPage = () => {
                 try {
                   try {
                     await addDomain.mutateAsync(d);
-                  } catch {
-                    // Domain may already be registered — that's OK, continue
+                  } catch (addErr: unknown) {
+                    // 409 = domain taken by another user
+                    const msg = addErr instanceof Error ? addErr.message : "";
+                    if (msg.includes("already registered")) {
+                      toast.error(t("settings.domain.taken"));
+                      return;
+                    }
+                    // Other errors (e.g. already registered by same user in SMTP2GO) — continue
                   }
                   // Update sender email to use the domain (keep local part or default to "noreply")
                   const local = currentLocalPart || "noreply";
                   await updateProfile.mutateAsync({ smtp_sender_email: `${local}@${d}` });
-                  // Refetch domain info via "view" (useSenderDomain re-queries when profile changes)
                   setDomainInput(null);
                   setSenderLocalPart(null);
                   toast.success(t("settings.domain.registered"));

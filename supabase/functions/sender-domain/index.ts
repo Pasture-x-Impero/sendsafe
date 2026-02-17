@@ -64,6 +64,53 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Use service role for domain ownership checks (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Check domain ownership on add/verify/view
+    if (action === "add") {
+      // Check if domain is already claimed by another user
+      const { data: existing } = await supabaseAdmin
+        .from("sender_domains")
+        .select("user_id")
+        .eq("domain", domain)
+        .maybeSingle();
+
+      if (existing && existing.user_id !== user.id) {
+        return new Response(JSON.stringify({ error: "This domain is already registered by another user" }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Claim domain for this user if not yet claimed
+      if (!existing) {
+        await supabaseAdmin
+          .from("sender_domains")
+          .insert({ user_id: user.id, domain });
+      }
+    }
+
+    if (action === "view" || action === "verify") {
+      // Only allow viewing/verifying domains you own
+      const { data: owned } = await supabaseAdmin
+        .from("sender_domains")
+        .select("user_id")
+        .eq("domain", domain)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!owned) {
+        return new Response(JSON.stringify({ error: "Domain not registered for your account" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const smtpResponse = await fetch(actionEndpoints[action], {
       method: "POST",
       headers: { "Content-Type": "application/json" },

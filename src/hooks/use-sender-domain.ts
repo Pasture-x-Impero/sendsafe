@@ -12,7 +12,13 @@ async function callSenderDomain(action: string, domain: string) {
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
 
-  if (res.error) throw new Error(res.error.message);
+  if (res.error) {
+    // Try to extract the error message from the response body
+    const errorBody = typeof res.data === "object" && res.data?.error
+      ? res.data.error
+      : res.error.message;
+    throw new Error(errorBody);
+  }
   return res.data;
 }
 
