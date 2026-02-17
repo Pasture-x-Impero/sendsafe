@@ -152,6 +152,7 @@ export type Database = {
           contact_name: string | null
           created_at: string
           id: string
+          industry: string | null
           status: string
           user_id: string
         }
@@ -161,6 +162,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           id?: string
+          industry?: string | null
           status?: string
           user_id: string
         }
@@ -170,6 +172,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           id?: string
+          industry?: string | null
           status?: string
           user_id?: string
         }

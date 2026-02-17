@@ -19,6 +19,7 @@ export interface Lead {
   company: string;
   contact_email: string;
   contact_name: string | null;
+  industry: string | null;
   status: "imported" | "skipped";
   created_at: string;
 }

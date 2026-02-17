@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, Trash2, Plus, X, Users } from "lucide-react";
+import { Upload, Download, Trash2, Plus, X, Users } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
 import {
@@ -62,11 +62,47 @@ const ContactsPage = () => {
     }
   };
 
+  // Parse groups string like "(Kunde;Lead)" → ["Kunde", "Lead"]
+  const parseGroups = (raw: string | undefined | null): string[] => {
+    if (!raw) return [];
+    const match = raw.match(/\(([^)]+)\)/);
+    if (!match) return [];
+    return match[1].split(";").map((g) => g.trim()).filter(Boolean);
+  };
+
+  // Ensure groups exist and add contact to them
+  const assignGroups = async (contactId: string, groupNames: string[]) => {
+    for (const name of groupNames) {
+      let group = groups.find((g) => g.name.toLowerCase() === name.toLowerCase());
+      if (!group) {
+        // Create the group
+        const created = await createGroup.mutateAsync(name);
+        group = created;
+      }
+      if (group) {
+        await addToGroup.mutateAsync({ contactIds: [contactId], groupId: group.id });
+      }
+    }
+  };
+
+  const downloadTemplate = useCallback(async () => {
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([
+      [t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups")],
+      ["Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "(Kunde;Lead)"],
+      ["Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "(Partner)"],
+    ]);
+    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Contacts");
+    XLSX.writeFile(wb, "sendsafe_contacts_template.xlsx");
+  }, [t]);
+
   const parseFile = useCallback(async (file: File) => {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase();
 
-      let rows: { company: string; contact_email: string; contact_name: string | null }[] = [];
+      let rows: { company: string; contact_email: string; contact_name: string | null; industry: string | null; groupsRaw: string | null }[] = [];
 
       if (ext === "csv") {
         const text = await file.text();
@@ -76,9 +112,11 @@ const ContactsPage = () => {
           return;
         }
         const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
-        const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("bedrift") || h.includes("firma"));
+        const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("selskap") || h.includes("bedrift") || h.includes("firma"));
         const emailIdx = header.findIndex((h) => h.includes("email") || h.includes("e-post") || h.includes("epost"));
         const nameIdx = header.findIndex((h) => h.includes("name") || h.includes("navn"));
+        const industryIdx = header.findIndex((h) => h.includes("industry") || h.includes("bransje"));
+        const groupsIdx = header.findIndex((h) => h.includes("group") || h.includes("gruppe"));
 
         if (companyIdx === -1 || emailIdx === -1) {
           toast.error("CSV must have 'company' and 'email' columns");
@@ -92,6 +130,8 @@ const ContactsPage = () => {
               company: cols[companyIdx] || "",
               contact_email: cols[emailIdx],
               contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null,
+              industry: industryIdx !== -1 ? cols[industryIdx] || null : null,
+              groupsRaw: groupsIdx !== -1 ? cols[groupsIdx] || null : null,
             });
           }
         }
@@ -104,15 +144,19 @@ const ContactsPage = () => {
 
         for (const row of data) {
           const keys = Object.keys(row);
-          const companyKey = keys.find((k) => k.toLowerCase().includes("company") || k.toLowerCase().includes("bedrift") || k.toLowerCase().includes("firma"));
-          const emailKey = keys.find((k) => k.toLowerCase().includes("email") || k.toLowerCase().includes("e-post") || k.toLowerCase().includes("epost"));
-          const nameKey = keys.find((k) => k.toLowerCase().includes("name") || k.toLowerCase().includes("navn"));
+          const companyKey = keys.find((k) => /company|selskap|bedrift|firma/i.test(k));
+          const emailKey = keys.find((k) => /email|e-post|epost/i.test(k));
+          const nameKey = keys.find((k) => /name|navn/i.test(k));
+          const industryKey = keys.find((k) => /industry|bransje/i.test(k));
+          const groupsKey = keys.find((k) => /group|gruppe/i.test(k));
 
           if (companyKey && emailKey && row[emailKey]) {
             rows.push({
               company: row[companyKey] || "",
               contact_email: row[emailKey],
               contact_name: nameKey ? row[nameKey] || null : null,
+              industry: industryKey ? row[industryKey] || null : null,
+              groupsRaw: groupsKey ? row[groupsKey] || null : null,
             });
           }
         }
@@ -126,14 +170,28 @@ const ContactsPage = () => {
         return;
       }
 
-      const toImport = rows.map((r) => ({ ...r, status: "imported" as const }));
+      const toImport = rows.map((r) => ({
+        company: r.company,
+        contact_email: r.contact_email,
+        contact_name: r.contact_name,
+        industry: r.industry,
+        status: "imported" as const,
+      }));
       const result = await importLeads.mutateAsync(toImport);
       setImportStats({ imported: result.length, skipped: rows.length - result.length });
+
+      // Assign groups after import
+      for (let i = 0; i < result.length; i++) {
+        const groupNames = parseGroups(rows[i].groupsRaw);
+        if (groupNames.length > 0) {
+          await assignGroups(result[i].id, groupNames);
+        }
+      }
     } catch (err: unknown) {
       console.error("File upload error:", err);
       toast.error("Failed to import contacts");
     }
-  }, [importLeads]);
+  }, [importLeads, groups, createGroup, addToGroup]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -141,25 +199,40 @@ const ContactsPage = () => {
     if (file) parseFile(file);
   }, [parseFile]);
 
-  const handleManualAdd = () => {
+  const handleManualAdd = async () => {
     const lines = manualInput.split("\n").map((l) => l.trim()).filter(Boolean);
-    const contacts = lines.map((line) => {
+    const parsed = lines.map((line) => {
+      // Format: company, email, name, industry, (group1;group2)
       const parts = line.split(",").map((p) => p.trim());
+      const groupsPart = parts.find((p) => p.startsWith("("));
+      const nonGroupParts = parts.filter((p) => !p.startsWith("("));
       return {
-        contact_name: parts[0] || null,
-        contact_email: parts[1] || "",
-        company: parts[2] || "",
+        company: nonGroupParts[0] || "",
+        contact_email: nonGroupParts[1] || "",
+        contact_name: nonGroupParts[2] || null,
+        industry: nonGroupParts[3] || null,
+        groupsRaw: groupsPart || null,
         status: "imported" as const,
       };
     }).filter((c) => c.contact_email);
 
-    if (contacts.length === 0) return;
-    importLeads.mutate(contacts, {
-      onSuccess: (data) => {
-        setManualInput("");
-        setImportStats({ imported: data.length, skipped: 0 });
-      },
-    });
+    if (parsed.length === 0) return;
+
+    const toImport = parsed.map(({ groupsRaw, ...rest }) => rest);
+    try {
+      const result = await importLeads.mutateAsync(toImport);
+      // Assign groups
+      for (let i = 0; i < result.length; i++) {
+        const groupNames = parseGroups(parsed[i].groupsRaw);
+        if (groupNames.length > 0) {
+          await assignGroups(result[i].id, groupNames);
+        }
+      }
+      setManualInput("");
+      setImportStats({ imported: result.length, skipped: 0 });
+    } catch {
+      toast.error("Failed to add contacts");
+    }
   };
 
   const startEdit = (id: string, field: string, value: string) => {
@@ -173,6 +246,7 @@ const ContactsPage = () => {
     if (editingCell.field === "company") update.company = editValue;
     if (editingCell.field === "contact_name") update.contact_name = editValue;
     if (editingCell.field === "contact_email") update.contact_email = editValue;
+    if (editingCell.field === "industry") update.industry = editValue;
     updateLead.mutate(update);
     setEditingCell(null);
   };
@@ -223,33 +297,50 @@ const ContactsPage = () => {
         </div>
 
         {tab === "file" ? (
-          <div
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-            className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30"
-          >
-            <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) parseFile(file);
-              }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-4 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          <div>
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30"
             >
-              {t("contacts.browse")}
-            </button>
+              <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) parseFile(file);
+                }}
+              />
+              <div className="mt-4 flex gap-3">
+                <button
+                  onClick={downloadTemplate}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  <Download className="h-4 w-4" />
+                  {t("contacts.downloadTemplate")}
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  {t("contacts.browse")}
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div>
+            <div className="mb-3 rounded-lg border border-border bg-accent/20 px-4 py-3">
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{t("contacts.manualFormat")}</p>
+              <code className="text-xs text-foreground">
+                {t("contacts.manualExample")}
+              </code>
+            </div>
             <textarea
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
@@ -378,8 +469,9 @@ const ContactsPage = () => {
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.company")}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.email")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
@@ -409,6 +501,20 @@ const ContactsPage = () => {
                       <span className="cursor-pointer font-medium text-foreground hover:text-primary">{lead.company}</span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-sm" onClick={() => startEdit(lead.id, "contact_email", lead.contact_email)}>
+                    {editingCell?.id === lead.id && editingCell.field === "contact_email" ? (
+                      <input
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={commitEdit}
+                        onKeyDown={(e) => e.key === "Enter" && commitEdit()}
+                        className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="cursor-pointer text-foreground hover:text-primary">{lead.contact_email}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm" onClick={() => startEdit(lead.id, "contact_name", lead.contact_name || "")}>
                     {editingCell?.id === lead.id && editingCell.field === "contact_name" ? (
                       <input
@@ -423,8 +529,8 @@ const ContactsPage = () => {
                       <span className="cursor-pointer text-muted-foreground hover:text-primary">{lead.contact_name || "—"}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm" onClick={() => startEdit(lead.id, "contact_email", lead.contact_email)}>
-                    {editingCell?.id === lead.id && editingCell.field === "contact_email" ? (
+                  <td className="px-4 py-3 text-sm" onClick={() => startEdit(lead.id, "industry", lead.industry || "")}>
+                    {editingCell?.id === lead.id && editingCell.field === "industry" ? (
                       <input
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
@@ -434,7 +540,7 @@ const ContactsPage = () => {
                         autoFocus
                       />
                     ) : (
-                      <span className="cursor-pointer text-foreground hover:text-primary">{lead.contact_email}</span>
+                      <span className="cursor-pointer text-muted-foreground hover:text-primary">{lead.industry || "—"}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
