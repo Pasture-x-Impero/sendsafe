@@ -111,19 +111,25 @@ Deno.serve(async (req) => {
     }
 
     if (action === "view" || action === "verify") {
-      // Only allow viewing/verifying domains you own
-      const { data: owned } = await supabaseAdmin
+      // Check if another user owns this domain
+      const { data: existing } = await supabaseAdmin
         .from("sender_domains")
         .select("user_id")
         .eq("domain", domain)
-        .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!owned) {
+      if (existing && existing.user_id !== user.id) {
         return new Response(JSON.stringify({ error: "Domain not registered for your account" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // Auto-claim unclaimed domains (handles domains registered before sender_domains table)
+      if (!existing) {
+        await supabaseAdmin
+          .from("sender_domains")
+          .insert({ user_id: user.id, domain });
       }
     }
 

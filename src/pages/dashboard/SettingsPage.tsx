@@ -100,7 +100,7 @@ const SettingsPage = () => {
 
   const addDomain = useAddSenderDomain();
   const verifyDomain = useVerifySenderDomain();
-  const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.smtp_sender_email);
+  const { data: domainInfo, isLoading: domainLoading } = useSenderDomain(profile?.plan === "free" ? null : profile?.smtp_sender_email);
   const [verifying, setVerifying] = useState(false);
   const [registering, setRegistering] = useState(false);
 
