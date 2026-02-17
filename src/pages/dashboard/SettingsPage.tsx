@@ -64,19 +64,21 @@ const SettingsPage = () => {
   // Clean up Outlook / Word HTML on paste
   const cleanOutlookHtml = useCallback((html: string) => {
     let clean = html;
-    // Remove Office XML tags (<o:p>, <v:*, <w:*, etc.)
+    // Unwrap <!--[if !vml]--> blocks — these contain HTML fallback images we want to keep
+    clean = clean.replace(/<!--\[if !vml\]-->([\s\S]*?)<!--\[endif\]-->/gi, "$1");
+    // Remove remaining conditional comments (VML blocks, etc.) and their content
+    clean = clean.replace(/<!\[if[^>]*>[\s\S]*?<!\[endif\]>/gi, "");
+    clean = clean.replace(/<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi, "");
+    // Remove Office XML tags (<o:p>, <v:*, <w:*, etc.) but keep <img>
     clean = clean.replace(/<\/?[ovw]:[^>]*>/gi, "");
+    // Remove <xml>...</xml> blocks
+    clean = clean.replace(/<xml>[\s\S]*?<\/xml>/gi, "");
     // Remove mso-* styles
     clean = clean.replace(/mso-[^;:"']+:[^;:"']+;?/gi, "");
     // Remove class="Mso*"
     clean = clean.replace(/class="Mso[^"]*"/gi, "");
     // Remove empty style attributes
     clean = clean.replace(/\s*style="\s*"/gi, "");
-    // Remove XML declarations and conditional comments
-    clean = clean.replace(/<!\[if[^>]*>[\s\S]*?<!\[endif\]>/gi, "");
-    clean = clean.replace(/<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi, "");
-    // Remove <xml>...</xml> blocks
-    clean = clean.replace(/<xml>[\s\S]*?<\/xml>/gi, "");
     // Remove font-family declarations (often Calibri/Times New Roman from Office)
     clean = clean.replace(/font-family:[^;}"']+;?/gi, "");
     // Remove empty spans
