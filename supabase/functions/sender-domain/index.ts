@@ -75,8 +75,8 @@ Deno.serve(async (req) => {
 
     const smtpResult = await smtpResponse.json();
 
-    // Log for debugging
-    console.log(`sender-domain [${action}] ${domain}: status=${smtpResponse.status}`, JSON.stringify(smtpResult));
+    // Log full response for debugging
+    console.log(`sender-domain [${action}] ${domain}: status=${smtpResponse.status} keys=${Object.keys(smtpResult).join(",")}`, JSON.stringify(smtpResult).slice(0, 1000));
 
     return new Response(JSON.stringify(smtpResult), {
       status: smtpResponse.ok ? 200 : 502,

@@ -20,21 +20,42 @@ function parseDomainResponse(data: unknown): SenderDomain | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
 
-  // SMTP2GO can return domain info at different nesting levels
-  const d =
-    (obj.data as Record<string, unknown>)?.domain ??
-    obj.domain ??
-    // Some endpoints return the domain fields at the top of data
-    obj.data ??
-    obj;
+  // Try to find domain info — SMTP2GO responses vary by endpoint:
+  // - add:    { data: { domain: "x", dkim_selector: "...", ... } }
+  // - view:   { data: { domains: [ { domain: "x", ... } ] } } or { data: { domain: { ... } } }
+  // - verify: { data: { domain: "x", ... } }
+  const candidates: unknown[] = [];
 
-  if (!d || typeof d !== "object") return null;
-  const domain = d as Record<string, unknown>;
+  const dataObj = obj.data as Record<string, unknown> | undefined;
+  if (dataObj && typeof dataObj === "object") {
+    // Check data.domains array (view endpoint)
+    if (Array.isArray(dataObj.domains) && dataObj.domains.length > 0) {
+      candidates.push(dataObj.domains[0]);
+    }
+    // Check data.domain as object
+    if (dataObj.domain && typeof dataObj.domain === "object") {
+      candidates.push(dataObj.domain);
+    }
+    // Check data itself (add/verify: fields at data level)
+    candidates.push(dataObj);
+  }
+  // Check top-level domain object
+  if (obj.domain && typeof obj.domain === "object") {
+    candidates.push(obj.domain);
+  }
+  // Check top level
+  candidates.push(obj);
 
-  // Must have at least a dkim_selector to be valid domain info
-  if (!domain.dkim_selector && !domain.dkim_value) return null;
+  for (const c of candidates) {
+    if (!c || typeof c !== "object") continue;
+    const rec = c as Record<string, unknown>;
+    if (rec.dkim_selector || rec.dkim_value) {
+      return rec as unknown as SenderDomain;
+    }
+  }
 
-  return domain as unknown as SenderDomain;
+  console.warn("parseDomainResponse: could not find domain info in", JSON.stringify(data));
+  return null;
 }
 
 export function useSenderDomain(senderEmail: string | null | undefined) {
@@ -65,11 +86,16 @@ export function useAddSenderDomain() {
     mutationFn: async (domain: string) => {
       return callSenderDomain("add", domain);
     },
-    onSuccess: (_data, domain) => {
-      // Wait briefly for SMTP2GO to process, then refetch
+    onSuccess: (data, domain) => {
+      // Try to seed cache directly from the add response
+      const parsed = parseDomainResponse(data);
+      if (parsed) {
+        queryClient.setQueryData(["sender-domain", domain], parsed);
+      }
+      // Also refetch after delay in case SMTP2GO needs time to process
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["sender-domain", domain] });
-      }, 1500);
+      }, 3000);
     },
   });
 }
@@ -81,8 +107,16 @@ export function useVerifySenderDomain() {
     mutationFn: async (domain: string) => {
       return callSenderDomain("verify", domain);
     },
-    onSuccess: (_data, domain) => {
-      queryClient.invalidateQueries({ queryKey: ["sender-domain", domain] });
+    onSuccess: (data, domain) => {
+      // Update cache from verify response
+      const parsed = parseDomainResponse(data);
+      if (parsed) {
+        queryClient.setQueryData(["sender-domain", domain], parsed);
+      }
+      // Also refetch to ensure fresh data
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["sender-domain", domain] });
+      }, 2000);
     },
   });
 }
