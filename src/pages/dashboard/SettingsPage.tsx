@@ -9,8 +9,9 @@ import { toast } from "sonner";
 import DOMPurify from "dompurify";
 
 const SIGNATURE_PURIFY_CONFIG = {
-  ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor"],
+  ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor", "width", "height", "style"],
   ADD_DATA_URI_TAGS: ["img"] as string[],
+  ALLOW_UNKNOWN_PROTOCOLS: true,
 };
 
 const tones = ["professional", "friendly", "direct"] as const;
@@ -141,6 +142,25 @@ const SettingsPage = () => {
       if (signatureRef.current) {
         signatureRef.current.innerHTML = cleaned;
         setSignatureHtml(cleaned);
+      }
+      return;
+    }
+
+    // Handle raw image paste (screenshot / copied image file)
+    const files = e.clipboardData.files;
+    if (files.length > 0) {
+      const imageFile = Array.from(files).find((f) => f.type.startsWith("image/"));
+      if (imageFile) {
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (signatureRef.current && typeof reader.result === "string") {
+            const img = `<img src="${reader.result}" style="max-width:100%;" />`;
+            signatureRef.current.innerHTML += img;
+            setSignatureHtml(signatureRef.current.innerHTML);
+          }
+        };
+        reader.readAsDataURL(imageFile);
       }
     }
   }, [cleanOutlookHtml]);
