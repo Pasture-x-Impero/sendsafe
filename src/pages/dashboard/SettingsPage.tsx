@@ -30,7 +30,7 @@ const SettingsPage = () => {
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
-  const [domainInput, setDomainInput] = useState("");
+  const [domainInput, setDomainInput] = useState<string | null>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
   const signatureInitialized = useRef(false);
 
@@ -225,7 +225,7 @@ const SettingsPage = () => {
               <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.domain.domainLabel")}</label>
               <input
                 type="text"
-                value={domainInput}
+                value={domainInput ?? currentDomain ?? ""}
                 onChange={(e) => setDomainInput(e.target.value)}
                 className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="yourdomain.com"
@@ -233,7 +233,7 @@ const SettingsPage = () => {
             </div>
             <button
               onClick={async () => {
-                const d = domainInput.trim() || currentDomain;
+                const d = domainInput?.trim() || currentDomain;
                 if (!d) return;
                 setRegistering(true);
                 try {
@@ -246,7 +246,7 @@ const SettingsPage = () => {
                   const local = currentLocalPart || "noreply";
                   await updateProfile.mutateAsync({ smtp_sender_email: `${local}@${d}` });
                   // Refetch domain info via "view" (useSenderDomain re-queries when profile changes)
-                  setDomainInput("");
+                  setDomainInput(null);
                   setSenderLocalPart(null);
                   toast.success(t("settings.domain.registered"));
                 } catch {
@@ -255,7 +255,7 @@ const SettingsPage = () => {
                   setRegistering(false);
                 }
               }}
-              disabled={registering || !(domainInput.trim() || currentDomain)}
+              disabled={registering || !(domainInput?.trim() || currentDomain)}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {registering ? t("settings.domain.registering") : t("settings.domain.register")}
