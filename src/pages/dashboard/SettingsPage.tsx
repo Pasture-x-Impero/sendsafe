@@ -285,13 +285,52 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          {plan === "free" && (
-            <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-sm text-foreground">
-                {t("settings.plan.upgradeHint")}
-              </p>
-            </div>
-          )}
+          {/* Plan picker */}
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {(["free", "starter", "pro"] as const).map((tier) => {
+              const isCurrent = plan === tier;
+              return (
+                <div
+                  key={tier}
+                  className={`relative rounded-lg border p-4 ${
+                    isCurrent
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-accent/20"
+                  }`}
+                >
+                  {tier === "starter" && (
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                      {t("pricing.mostPopular")}
+                    </span>
+                  )}
+                  <p className="font-heading text-sm font-semibold text-foreground">{t(`plan.${tier}` as "plan.free")}</p>
+                  <p className="mt-0.5 text-lg font-bold text-foreground">
+                    {PLAN_PRICES[tier]}
+                    {tier !== "free" && <span className="text-xs font-normal text-muted-foreground"> / {t("pricing.period")}</span>}
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <li>{PLAN_SEND_LIMITS[tier]} {t("settings.plan.sends").toLowerCase()} / {t("pricing.period")}</li>
+                    <li>{PLAN_AI_LIMITS[tier] === 0 ? "—" : `${PLAN_AI_LIMITS[tier]} ${t("settings.plan.aiCredits").toLowerCase()}`}</li>
+                    <li>{tier === "free" ? t("pricing.feature.standardOnly") : t("pricing.feature.customDomain")}</li>
+                  </ul>
+                  {isCurrent ? (
+                    <span className="mt-3 block text-center text-xs font-medium text-primary">{t("settings.plan.current")}</span>
+                  ) : (
+                    <button
+                      onClick={() => updateProfile.mutate({ plan: tier } as any)}
+                      className={`mt-3 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        tier === "free"
+                          ? "border border-border bg-accent text-foreground hover:bg-accent/80"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      }`}
+                    >
+                      {tier === "free" ? t("settings.plan.downgrade") : t("settings.plan.upgrade")}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Goal */}
