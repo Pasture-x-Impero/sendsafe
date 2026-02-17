@@ -29,7 +29,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (updates: Partial<Pick<Profile, "tone" | "goal" | "autosend_threshold" | "onboarding_completed" | "smtp_api_key" | "smtp_sender_email" | "smtp_sender_name" | "email_signature">>) => {
+    mutationFn: async (updates: Partial<Pick<Profile, "tone" | "goal" | "autosend_threshold" | "onboarding_completed" | "smtp_api_key" | "smtp_sender_email" | "smtp_sender_name" | "email_signature" | "plan">>) => {
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("profiles")

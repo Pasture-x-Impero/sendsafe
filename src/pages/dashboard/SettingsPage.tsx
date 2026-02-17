@@ -319,7 +319,7 @@ const SettingsPage = () => {
                     <span className="mt-3 block text-center text-xs font-medium text-primary">{t("settings.plan.current")}</span>
                   ) : (
                     <button
-                      onClick={() => updateProfile.mutate({ plan: tier } as any)}
+                      onClick={() => updateProfile.mutate({ plan: tier })}
                       className={`mt-3 w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                         tier === "free"
                           ? "border border-border bg-accent text-foreground hover:bg-accent/80"
