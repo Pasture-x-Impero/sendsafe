@@ -1,9 +1,17 @@
 import { useState, useRef, useEffect, useCallback, type ClipboardEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+
+const SIGNATURE_PURIFY_CONFIG = {
+  ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor"],
+  ADD_DATA_URI_TAGS: ["img"] as string[],
+};
 
 const tones = ["professional", "friendly", "direct"] as const;
 const goals = ["sales", "partnerships", "recruiting", "other"] as const;
@@ -21,10 +29,49 @@ const goalKeys = {
   other: "onboarding.goal.other",
 } as const;
 
+const PLAN_SEND_LIMITS: Record<string, number> = { free: 10, starter: 300, pro: 300 };
+const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 1000 };
+const PLAN_PRICES: Record<string, string> = { free: "0 kr", starter: "299 kr", pro: "799 kr" };
+
 const SettingsPage = () => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { data: profile, isLoading } = useProfile();
   const updateProfile = useUpdateProfile();
+
+  // Usage queries
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const plan = profile?.plan ?? "free";
+
+  const { data: sendsUsed = 0 } = useQuery({
+    queryKey: ["usage-sends", user?.id, startOfMonth],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count } = await supabase
+        .from("emails")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("status", "sent")
+        .gte("sent_at", startOfMonth);
+      return count ?? 0;
+    },
+    enabled: !!user,
+  });
+
+  const { data: aiUsed = 0 } = useQuery({
+    queryKey: ["usage-ai", user?.id, startOfMonth],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count } = await supabase
+        .from("emails")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("generation_mode", "ai")
+        .gte("created_at", startOfMonth);
+      return count ?? 0;
+    },
+    enabled: !!user,
+  });
 
   const [senderLocalPart, setSenderLocalPart] = useState<string | null>(null);
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
@@ -43,7 +90,7 @@ const SettingsPage = () => {
   // Set contentEditable innerHTML from profile on first load (avoids cursor-jump)
   useEffect(() => {
     if (profile?.email_signature && signatureRef.current && !signatureInitialized.current) {
-      signatureRef.current.innerHTML = DOMPurify.sanitize(profile.email_signature);
+      signatureRef.current.innerHTML = DOMPurify.sanitize(profile.email_signature, SIGNATURE_PURIFY_CONFIG);
       signatureInitialized.current = true;
     }
   }, [profile?.email_signature]);
@@ -83,7 +130,7 @@ const SettingsPage = () => {
     clean = clean.replace(/font-family:[^;}"']+;?/gi, "");
     // Remove empty spans
     clean = clean.replace(/<span[^>]*>\s*<\/span>/gi, "");
-    return DOMPurify.sanitize(clean);
+    return DOMPurify.sanitize(clean, SIGNATURE_PURIFY_CONFIG);
   }, []);
 
   const handleSignaturePaste = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
@@ -91,9 +138,9 @@ const SettingsPage = () => {
     if (html) {
       e.preventDefault();
       const cleaned = cleanOutlookHtml(html);
-      document.execCommand("insertHTML", false, cleaned);
       if (signatureRef.current) {
-        setSignatureHtml(signatureRef.current.innerHTML);
+        signatureRef.current.innerHTML = cleaned;
+        setSignatureHtml(cleaned);
       }
     }
   }, [cleanOutlookHtml]);
@@ -127,7 +174,7 @@ const SettingsPage = () => {
     setSmtpSaving(true);
     try {
       const fullEmail = currentLocalPart && currentDomain ? `${currentLocalPart}@${currentDomain}` : null;
-      const sanitizedSignature = currentSignature ? DOMPurify.sanitize(currentSignature) : null;
+      const sanitizedSignature = currentSignature ? DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) : null;
       await updateProfile.mutateAsync({
         smtp_sender_email: fullEmail,
         smtp_sender_name: senderName || null,
@@ -178,6 +225,75 @@ const SettingsPage = () => {
       </div>
 
       <div className="max-w-2xl space-y-8">
+        {/* Plans & Usage */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.plan.title")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("settings.plan.desc")}</p>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+              {t(`plan.${plan}` as "plan.free")} — {PLAN_PRICES[plan]}
+              {plan !== "free" && <span className="ml-1 text-xs font-normal text-muted-foreground">/ {t("pricing.period")}</span>}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {/* Sends usage */}
+            <div className="rounded-lg border border-border bg-accent/20 p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">{t("settings.plan.sends")}</span>
+                <span className="text-muted-foreground">{sendsUsed} / {PLAN_SEND_LIMITS[plan]}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-accent">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    sendsUsed >= PLAN_SEND_LIMITS[plan] ? "bg-destructive" : "bg-primary"
+                  }`}
+                  style={{ width: `${Math.min(100, (sendsUsed / PLAN_SEND_LIMITS[plan]) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {Math.max(0, PLAN_SEND_LIMITS[plan] - sendsUsed)} {t("plan.sendsRemaining")}
+              </p>
+            </div>
+
+            {/* AI credits usage */}
+            <div className="rounded-lg border border-border bg-accent/20 p-4">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">{t("settings.plan.aiCredits")}</span>
+                <span className="text-muted-foreground">
+                  {plan === "free" ? "—" : `${aiUsed} / ${PLAN_AI_LIMITS[plan]}`}
+                </span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-accent">
+                {plan !== "free" && (
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      aiUsed >= PLAN_AI_LIMITS[plan] ? "bg-destructive" : "bg-primary"
+                    }`}
+                    style={{ width: `${Math.min(100, (aiUsed / PLAN_AI_LIMITS[plan]) * 100)}%` }}
+                  />
+                )}
+              </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {plan === "free"
+                  ? t("plan.aiDisabled")
+                  : `${Math.max(0, PLAN_AI_LIMITS[plan] - aiUsed)} ${t("plan.aiCreditsRemaining")}`
+                }
+              </p>
+            </div>
+          </div>
+
+          {plan === "free" && (
+            <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm text-foreground">
+                {t("settings.plan.upgradeHint")}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Goal */}
         <div className="rounded-xl border border-border bg-card p-6">
           <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.goal.title")}</h3>
@@ -455,7 +571,7 @@ const SettingsPage = () => {
               <hr className="my-4 border-border" />
               <div
                 className="text-sm text-foreground"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
               />
             </div>
           </div>
