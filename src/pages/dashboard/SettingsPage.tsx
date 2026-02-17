@@ -359,27 +359,6 @@ const SettingsPage = () => {
           </div>
         </div>
 
-        {/* Tone */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.tone.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.tone.desc")}</p>
-          <div className="mt-4 flex gap-3">
-            {tones.map((tone) => (
-              <button
-                key={tone}
-                onClick={() => updateProfile.mutate({ tone })}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                  currentTone === tone
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border bg-accent text-foreground hover:border-primary/30"
-                }`}
-              >
-                {t(toneKeys[tone])}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Email Preview */}
         {currentSignature && (
           <div className="rounded-xl border border-border bg-card p-6">
@@ -627,6 +606,26 @@ const SettingsPage = () => {
           </div>
         </div>
 
+        {/* Tone */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.tone.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t("settings.tone.desc")}</p>
+          <div className="mt-4 flex gap-3">
+            {tones.map((tone) => (
+              <button
+                key={tone}
+                onClick={() => updateProfile.mutate({ tone })}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  currentTone === tone
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border bg-accent text-foreground hover:border-primary/30"
+                }`}
+              >
+                {t(toneKeys[tone])}
+              </button>
+            ))}
+          </div>
+        </div>
 
       </div>
     </div>
