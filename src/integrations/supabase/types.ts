@@ -153,6 +153,7 @@ export type Database = {
           contact_name: string | null
           created_at: string
           domain: string | null
+          enriched_at: string | null
           id: string
           industry: string | null
           status: string
@@ -165,6 +166,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           domain?: string | null
+          enriched_at?: string | null
           id?: string
           industry?: string | null
           status?: string
@@ -177,6 +179,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           domain?: string | null
+          enriched_at?: string | null
           id?: string
           industry?: string | null
           status?: string

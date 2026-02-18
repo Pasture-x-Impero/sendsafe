@@ -189,6 +189,10 @@ export const translations = {
     "contacts.export": "Export",
     "contacts.edit": "Edit",
     "contacts.save": "Save",
+    "contacts.enrich": "Enrich with AI",
+    "contacts.enriching": "Enriching…",
+    "contacts.enrichDone": "contacts enriched",
+    "contacts.enrichDesc": "Find CEO name & email using AI",
 
     // Create page
     "create.title": "Create Campaign",
@@ -567,6 +571,10 @@ export const translations = {
     "contacts.export": "Eksporter",
     "contacts.edit": "Rediger",
     "contacts.save": "Lagre",
+    "contacts.enrich": "Berik med AI",
+    "contacts.enriching": "Beriker…",
+    "contacts.enrichDone": "kontakter beriket",
+    "contacts.enrichDesc": "Finn CEO-navn og e-post med AI",
 
     // Create page
     "create.title": "Opprett kampanje",

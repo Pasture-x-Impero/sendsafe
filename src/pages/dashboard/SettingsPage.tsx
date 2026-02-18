@@ -63,13 +63,19 @@ const SettingsPage = () => {
     queryKey: ["usage-ai", user?.id, startOfMonth],
     queryFn: async () => {
       if (!user) return 0;
-      const { count } = await supabase
+      const { count: aiEmails } = await supabase
         .from("emails")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("generation_mode", "ai")
         .gte("created_at", startOfMonth);
-      return count ?? 0;
+      const { count: enrichments } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("enriched_at", "is", null)
+        .gte("enriched_at", startOfMonth);
+      return (aiEmails ?? 0) + (enrichments ?? 0);
     },
     enabled: !!user,
   });

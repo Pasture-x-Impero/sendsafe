@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
 import {
@@ -9,6 +9,7 @@ import {
   useGroupMemberships,
   useAddToGroup,
 } from "@/hooks/use-contact-groups";
+import { useEnrichContacts } from "@/hooks/use-enrich-contacts";
 import { toast } from "sonner";
 import type { Lead } from "@/types/database";
 
@@ -26,6 +27,7 @@ const ContactsPage = () => {
   const deleteGroup = useDeleteContactGroup();
   const { data: memberships = [] } = useGroupMemberships();
   const addToGroup = useAddToGroup();
+  const enrichContacts = useEnrichContacts();
 
   const [tab, setTab] = useState<"file" | "manual">("file");
   const [manualInput, setManualInput] = useState("");
@@ -424,6 +426,24 @@ const ContactsPage = () => {
             <span className="text-sm text-muted-foreground">{selectedIds.size} {t("contacts.selected")}</span>
             <button onClick={() => setShowAddToGroup(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
               <Users className="h-3.5 w-3.5" /> {t("contacts.addToGroup")}
+            </button>
+            <button
+              onClick={() => {
+                const ids = Array.from(selectedIds);
+                enrichContacts.mutate(ids, {
+                  onSuccess: (data) => {
+                    const ok = data.results.filter((r) => r.success).length;
+                    toast.success(`${ok} ${t("contacts.enrichDone")}`);
+                    setSelectedIds(new Set());
+                  },
+                  onError: (err) => toast.error(err.message),
+                });
+              }}
+              disabled={enrichContacts.isPending}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
+              title={t("contacts.enrichDesc")}
+            >
+              <Sparkles className="h-3.5 w-3.5" /> {enrichContacts.isPending ? t("contacts.enriching") : t("contacts.enrich")}
             </button>
           </>
         )}

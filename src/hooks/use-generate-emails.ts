@@ -65,14 +65,20 @@ export function useGenerateEmails() {
         const aiLimit = PLAN_AI_LIMITS[plan] ?? 0;
 
         const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-        const { count: aiUsed } = await supabase
+        const { count: aiEmails } = await supabase
           .from("emails")
           .select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
           .eq("generation_mode", "ai")
           .gte("created_at", startOfMonth);
+        const { count: enrichments } = await supabase
+          .from("leads")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .not("enriched_at", "is", null)
+          .gte("enriched_at", startOfMonth);
 
-        const remaining = aiLimit - (aiUsed ?? 0);
+        const remaining = aiLimit - ((aiEmails ?? 0) + (enrichments ?? 0));
         if (contactIds.length > remaining) {
           throw new Error(
             remaining <= 0
