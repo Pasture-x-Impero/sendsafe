@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import type { Lead } from "@/types/database";
 
-type SortField = "company" | "contact_email" | "contact_name" | "industry";
+type SortField = "domain" | "company" | "contact_email" | "contact_name" | "industry";
 type SortDir = "asc" | "desc";
 
 const ContactsPage = () => {
@@ -140,6 +140,19 @@ const ContactsPage = () => {
     return match[1].split(";").map((g) => g.trim()).filter(Boolean);
   };
 
+  // Parse {(groups), "comment"} format → { groups, comment }
+  const parseGroupsAndComment = (raw: string | undefined | null): { groups: string[]; comment: string | null } => {
+    if (!raw) return { groups: [], comment: null };
+    const braceMatch = raw.match(/\{([^}]*)\}/);
+    if (braceMatch) {
+      const inner = braceMatch[1];
+      const groups = parseGroups(inner);
+      const commentMatch = inner.match(/"([^"]*)"/);
+      return { groups, comment: commentMatch ? commentMatch[1] : null };
+    }
+    return { groups: parseGroups(raw), comment: null };
+  };
+
   // Ensure groups exist and add contact to them
   const assignGroups = async (contactId: string, groupNames: string[]) => {
     for (const name of groupNames) {
@@ -157,11 +170,11 @@ const ContactsPage = () => {
   const downloadTemplate = useCallback(async () => {
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([
-      [t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups")],
-      ["Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "(Kunde;Lead)"],
-      ["Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "(Partner)"],
+      [t("contacts.col.domain"), t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups"), t("contacts.col.comment")],
+      ["acme.no", "Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "(Kunde;Lead)", "Møtt på konferanse"],
+      ["globex.no", "Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "(Partner)", "Følg opp Q2"],
     ]);
-    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+    ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contacts");
     XLSX.writeFile(wb, "sendsafe_contacts_template.xlsx");
@@ -172,13 +185,13 @@ const ContactsPage = () => {
     const rows = sortedLeads.map((lead) => {
       const contactGroups = getGroupsForContact(lead.id);
       const groupStr = contactGroups.length > 0 ? `(${contactGroups.map((g) => g.name).join(";")})` : "";
-      return [lead.company, lead.contact_email, lead.contact_name || "", lead.industry || "", groupStr];
+      return [lead.domain || "", lead.company, lead.contact_email, lead.contact_name || "", lead.industry || "", groupStr, lead.comment || ""];
     });
     const ws = XLSX.utils.aoa_to_sheet([
-      [t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups")],
+      [t("contacts.col.domain"), t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups"), t("contacts.col.comment")],
       ...rows,
     ]);
-    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }];
+    ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contacts");
     XLSX.writeFile(wb, "sendsafe_contacts_export.xlsx");
@@ -187,23 +200,25 @@ const ContactsPage = () => {
   const parseFile = useCallback(async (file: File) => {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase();
-      let rows: { company: string; contact_email: string; contact_name: string | null; industry: string | null; groupsRaw: string | null }[] = [];
+      let rows: { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupsRaw: string | null }[] = [];
 
       if (ext === "csv") {
         const text = await file.text();
         const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
         if (lines.length < 2) { toast.error("CSV file is empty or has no data rows"); return; }
         const header = lines[0].toLowerCase().split(",").map((h) => h.trim());
+        const domainIdx = header.findIndex((h) => h.includes("domain") || h.includes("domene") || h.includes("nettside") || h.includes("website"));
         const companyIdx = header.findIndex((h) => h.includes("company") || h.includes("selskap") || h.includes("bedrift") || h.includes("firma"));
         const emailIdx = header.findIndex((h) => h.includes("email") || h.includes("e-post") || h.includes("epost"));
         const nameIdx = header.findIndex((h) => h.includes("name") || h.includes("navn"));
         const industryIdx = header.findIndex((h) => h.includes("industry") || h.includes("bransje"));
         const groupsIdx = header.findIndex((h) => h.includes("group") || h.includes("gruppe"));
+        const commentIdx = header.findIndex((h) => h.includes("comment") || h.includes("kommentar") || h.includes("notat"));
         if (companyIdx === -1 || emailIdx === -1) { toast.error("CSV must have 'company' and 'email' columns"); return; }
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(",").map((c) => c.trim());
           if (cols[emailIdx]) {
-            rows.push({ company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, groupsRaw: groupsIdx !== -1 ? cols[groupsIdx] || null : null });
+            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, groupsRaw: groupsIdx !== -1 ? cols[groupsIdx] || null : null });
           }
         }
       } else if (ext === "xlsx" || ext === "xls") {
@@ -214,19 +229,21 @@ const ContactsPage = () => {
         const data = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
         for (const row of data) {
           const keys = Object.keys(row);
+          const domainKey = keys.find((k) => /domain|domene|nettside|website/i.test(k));
           const companyKey = keys.find((k) => /company|selskap|bedrift|firma/i.test(k));
           const emailKey = keys.find((k) => /email|e-post|epost/i.test(k));
           const nameKey = keys.find((k) => /name|navn/i.test(k));
           const industryKey = keys.find((k) => /industry|bransje/i.test(k));
           const groupsKey = keys.find((k) => /group|gruppe/i.test(k));
+          const commentKey = keys.find((k) => /comment|kommentar|notat/i.test(k));
           if (companyKey && emailKey && row[emailKey]) {
-            rows.push({ company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, groupsRaw: groupsKey ? row[groupsKey] || null : null });
+            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, groupsRaw: groupsKey ? row[groupsKey] || null : null });
           }
         }
       } else { toast.error("Unsupported file type. Use .csv, .xlsx, or .xls"); return; }
 
       if (rows.length === 0) { toast.error("No valid contacts found in file"); return; }
-      const toImport = rows.map((r) => ({ company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, status: "imported" as const }));
+      const toImport = rows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, status: "imported" as const }));
       const result = await importLeads.mutateAsync(toImport);
       setImportStats({ imported: result.length, skipped: rows.length - result.length });
       for (let i = 0; i < result.length; i++) {
@@ -241,18 +258,19 @@ const ContactsPage = () => {
   const handleManualAdd = async () => {
     const lines = manualInput.split("\n").map((l) => l.trim()).filter(Boolean);
     const parsed = lines.map((line) => {
-      const parts = line.split(",").map((p) => p.trim());
-      const groupsPart = parts.find((p) => p.startsWith("("));
-      const nonGroupParts = parts.filter((p) => !p.startsWith("("));
-      return { company: nonGroupParts[0] || "", contact_email: nonGroupParts[1] || "", contact_name: nonGroupParts[2] || null, industry: nonGroupParts[3] || null, groupsRaw: groupsPart || null, status: "imported" as const };
+      // Extract {(groups), "comment"} block first
+      const braceMatch = line.match(/\{([^}]*)\}/);
+      const lineWithoutBrace = braceMatch ? line.replace(braceMatch[0], "").replace(/,\s*$/, "") : line;
+      const parts = lineWithoutBrace.split(",").map((p) => p.trim()).filter(Boolean);
+      const gc = parseGroupsAndComment(braceMatch ? braceMatch[0] : null);
+      return { domain: parts[0] || null, company: parts[1] || "", contact_email: parts[2] || "", contact_name: parts[3] || null, industry: parts[4] || null, comment: gc.comment, groupNames: gc.groups, status: "imported" as const };
     }).filter((c) => c.contact_email);
     if (parsed.length === 0) return;
-    const toImport = parsed.map(({ groupsRaw, ...rest }) => rest);
+    const toImport = parsed.map(({ groupNames, ...rest }) => rest);
     try {
       const result = await importLeads.mutateAsync(toImport);
       for (let i = 0; i < result.length; i++) {
-        const groupNames = parseGroups(parsed[i].groupsRaw);
-        if (groupNames.length > 0) await assignGroups(result[i].id, groupNames);
+        if (parsed[i].groupNames.length > 0) await assignGroups(result[i].id, parsed[i].groupNames);
       }
       setManualInput(""); setImportStats({ imported: result.length, skipped: 0 });
     } catch { toast.error("Failed to add contacts"); }
@@ -261,17 +279,19 @@ const ContactsPage = () => {
   // Inline edit helpers
   const startEditRow = (lead: Lead) => {
     setEditingRow(lead.id);
-    setEditValues({ company: lead.company, contact_email: lead.contact_email, contact_name: lead.contact_name || "", industry: lead.industry || "" });
+    setEditValues({ domain: lead.domain || "", company: lead.company, contact_email: lead.contact_email, contact_name: lead.contact_name || "", industry: lead.industry || "", comment: lead.comment || "" });
   };
 
   const commitEditRow = () => {
     if (!editingRow) return;
     updateLead.mutate({
       id: editingRow,
+      domain: editValues.domain || null,
       company: editValues.company,
       contact_email: editValues.contact_email,
       contact_name: editValues.contact_name || null,
       industry: editValues.industry || null,
+      comment: editValues.comment || null,
     });
     setEditingRow(null);
     setEditValues({});
@@ -351,12 +371,17 @@ const ContactsPage = () => {
               <ChevronDown className="ml-1 h-3 w-3" />
             </button>
             {showGroupFilter && (
-              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-border bg-card p-2 shadow-lg">
                 {groups.map((g) => (
-                  <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
-                    <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
-                    {g.name}
-                  </label>
+                  <div key={g.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
+                    <label className="flex flex-1 cursor-pointer items-center gap-2">
+                      <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
+                      {g.name}
+                    </label>
+                    <button onClick={() => { deleteGroup.mutate(g.id); setFilterGroupIds((prev) => { const next = new Set(prev); next.delete(g.id); return next; }); }} className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 [div:hover>&]:opacity-100" title={t("contacts.deleteGroup")}>
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 ))}
                 {filterGroupIds.size > 0 && (
                   <button onClick={() => setFilterGroupIds(new Set())} className="mt-1 w-full rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{t("contacts.filterAll")}</button>
@@ -443,6 +468,9 @@ const ContactsPage = () => {
                 <th className="w-10 px-4 py-3">
                   <input type="checkbox" checked={selectedIds.size === sortedLeads.length && sortedLeads.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded border-border accent-primary" />
                 </th>
+                <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
+                  {t("contacts.col.domain")}<SortIcon field="domain" />
+                </th>
                 <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
                   {t("contacts.col.company")}<SortIcon field="company" />
                 </th>
@@ -456,6 +484,7 @@ const ContactsPage = () => {
                   {t("contacts.col.industry")}<SortIcon field="industry" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.comment")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
             </thead>
@@ -467,13 +496,15 @@ const ContactsPage = () => {
                   </td>
                   {isEditing(lead.id) ? (
                     <>
-                      <td className="px-4 py-2"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
+                      <td className="px-4 py-2"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
+                      <td className="px-4 py-2"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                       <td className="px-4 py-2"><input value={editValues.contact_email} onChange={(e) => setEditValues((v) => ({ ...v, contact_email: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                       <td className="px-4 py-2"><input value={editValues.contact_name} onChange={(e) => setEditValues((v) => ({ ...v, contact_name: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                       <td className="px-4 py-2"><input value={editValues.industry} onChange={(e) => setEditValues((v) => ({ ...v, industry: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                     </>
                   ) : (
                     <>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{lead.domain || "—"}</td>
                       <td className="px-4 py-3 text-sm"><span className="font-medium text-foreground">{lead.company}</span></td>
                       <td className="px-4 py-3 text-sm text-foreground">{lead.contact_email}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{lead.contact_name || "—"}</td>
@@ -486,6 +517,13 @@ const ContactsPage = () => {
                         <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
                       ))}
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {isEditing(lead.id) ? (
+                      <input value={editValues.comment} onChange={(e) => setEditValues((v) => ({ ...v, comment: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" />
+                    ) : (
+                      lead.comment || "—"
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">

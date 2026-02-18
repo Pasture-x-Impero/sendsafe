@@ -16,10 +16,12 @@ export interface Profile {
 export interface Lead {
   id: string;
   user_id: string;
+  domain: string | null;
   company: string;
   contact_email: string;
   contact_name: string | null;
   industry: string | null;
+  comment: string | null;
   status: "imported" | "skipped";
   created_at: string;
 }

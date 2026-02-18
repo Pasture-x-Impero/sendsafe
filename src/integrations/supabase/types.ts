@@ -147,30 +147,36 @@ export type Database = {
       }
       leads: {
         Row: {
+          comment: string | null
           company: string
           contact_email: string
           contact_name: string | null
           created_at: string
+          domain: string | null
           id: string
           industry: string | null
           status: string
           user_id: string
         }
         Insert: {
+          comment?: string | null
           company: string
           contact_email: string
           contact_name?: string | null
           created_at?: string
+          domain?: string | null
           id?: string
           industry?: string | null
           status?: string
           user_id: string
         }
         Update: {
+          comment?: string | null
           company?: string
           contact_email?: string
           contact_name?: string | null
           created_at?: string
+          domain?: string | null
           id?: string
           industry?: string | null
           status?: string
