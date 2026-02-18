@@ -183,6 +183,10 @@ export const translations = {
     "contacts.selectGroup": "Select group",
     "contacts.deleteGroup": "Delete group",
     "contacts.selected": "selected",
+    "contacts.filterAllIndustries": "All industries",
+    "contacts.export": "Export",
+    "contacts.edit": "Edit",
+    "contacts.save": "Save",
 
     // Create page
     "create.title": "Create Campaign",
@@ -555,6 +559,10 @@ export const translations = {
     "contacts.selectGroup": "Velg gruppe",
     "contacts.deleteGroup": "Slett gruppe",
     "contacts.selected": "valgt",
+    "contacts.filterAllIndustries": "Alle bransjer",
+    "contacts.export": "Eksporter",
+    "contacts.edit": "Rediger",
+    "contacts.save": "Lagre",
 
     // Create page
     "create.title": "Opprett kampanje",
