@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
@@ -30,8 +30,12 @@ const ContactsPage = () => {
   const [tab, setTab] = useState<"file" | "manual">("file");
   const [manualInput, setManualInput] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filterGroupId, setFilterGroupId] = useState<string>("");
-  const [filterIndustry, setFilterIndustry] = useState<string>("");
+  const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
+  const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
+  const [showGroupFilter, setShowGroupFilter] = useState(false);
+  const [showIndustryFilter, setShowIndustryFilter] = useState(false);
+  const groupFilterRef = useRef<HTMLDivElement>(null);
+  const industryFilterRef = useRef<HTMLDivElement>(null);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -48,17 +52,35 @@ const ContactsPage = () => {
     return Array.from(set).sort();
   }, [leads]);
 
+  // Close dropdowns on click outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (groupFilterRef.current && !groupFilterRef.current.contains(e.target as Node)) setShowGroupFilter(false);
+      if (industryFilterRef.current && !industryFilterRef.current.contains(e.target as Node)) setShowIndustryFilter(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleFilterGroup = (id: string) => {
+    setFilterGroupIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+
+  const toggleFilterIndustry = (ind: string) => {
+    setFilterIndustries((prev) => { const next = new Set(prev); if (next.has(ind)) next.delete(ind); else next.add(ind); return next; });
+  };
+
   // Filter
   const filtered = useMemo(() => {
     let result = leads;
-    if (filterGroupId) {
-      result = result.filter((lead) => memberships.some((m) => m.contact_id === lead.id && m.group_id === filterGroupId));
+    if (filterGroupIds.size > 0) {
+      result = result.filter((lead) => memberships.some((m) => m.contact_id === lead.id && filterGroupIds.has(m.group_id)));
     }
-    if (filterIndustry) {
-      result = result.filter((lead) => lead.industry === filterIndustry);
+    if (filterIndustries.size > 0) {
+      result = result.filter((lead) => lead.industry != null && filterIndustries.has(lead.industry));
     }
     return result;
-  }, [leads, filterGroupId, filterIndustry, memberships]);
+  }, [leads, filterGroupIds, filterIndustries, memberships]);
 
   // Sort
   const sortedLeads = useMemo(() => {
@@ -320,20 +342,52 @@ const ContactsPage = () => {
 
       {/* Toolbar: filters, groups, export */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select value={filterGroupId} onChange={(e) => setFilterGroupId(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
-          <option value="">{t("contacts.filterAll")}</option>
-          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
-
-        {industries.length > 0 && (
-          <select value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
-            <option value="">{t("contacts.filterAllIndustries")}</option>
-            {industries.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
-          </select>
+        {/* Group checkbox filter */}
+        {groups.length > 0 && (
+          <div ref={groupFilterRef} className="relative">
+            <button onClick={() => { setShowGroupFilter((v) => !v); setShowIndustryFilter(false); }} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterGroupIds.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}>
+              {t("contacts.col.groups")}
+              {filterGroupIds.size > 0 && <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">{filterGroupIds.size}</span>}
+              <ChevronDown className="ml-1 h-3 w-3" />
+            </button>
+            {showGroupFilter && (
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                {groups.map((g) => (
+                  <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
+                    <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
+                    {g.name}
+                  </label>
+                ))}
+                {filterGroupIds.size > 0 && (
+                  <button onClick={() => setFilterGroupIds(new Set())} className="mt-1 w-full rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{t("contacts.filterAll")}</button>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
-        {filterGroupId && (
-          <button onClick={() => deleteGroup.mutate(filterGroupId, { onSuccess: () => setFilterGroupId("") })} className="rounded-lg border border-destructive/30 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10">{t("contacts.deleteGroup")}</button>
+        {/* Industry checkbox filter */}
+        {industries.length > 0 && (
+          <div ref={industryFilterRef} className="relative">
+            <button onClick={() => { setShowIndustryFilter((v) => !v); setShowGroupFilter(false); }} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterIndustries.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}>
+              {t("contacts.col.industry")}
+              {filterIndustries.size > 0 && <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">{filterIndustries.size}</span>}
+              <ChevronDown className="ml-1 h-3 w-3" />
+            </button>
+            {showIndustryFilter && (
+              <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                {industries.map((ind) => (
+                  <label key={ind} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
+                    <input type="checkbox" checked={filterIndustries.has(ind)} onChange={() => toggleFilterIndustry(ind)} className="h-4 w-4 rounded border-border accent-primary" />
+                    {ind}
+                  </label>
+                ))}
+                {filterIndustries.size > 0 && (
+                  <button onClick={() => setFilterIndustries(new Set())} className="mt-1 w-full rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{t("contacts.filterAllIndustries")}</button>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <button onClick={() => setShowCreateGroup(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
