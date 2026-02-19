@@ -57,16 +57,16 @@ export const translations = {
 
     // Why SendSafe
     "why.title": "Why SendSafe?",
-    "why.subtitle": "SendSafe doesn't just generate emails.",
-    "why.subtitleBold": "It verifies them.",
-    "why.reason1.title": "Prevents hallucinated company facts",
-    "why.reason1.desc": "AI review catches made-up claims about companies before they reach your prospects.",
-    "why.reason2.title": "Catches incorrect personalization",
-    "why.reason2.desc": "Ensures names, titles, and company details are accurate in every email.",
-    "why.reason3.title": "Reduces spam-trigger language",
-    "why.reason3.desc": "Flags words and patterns that increase the chance of landing in spam folders.",
-    "why.reason4.title": "Keeps humans in control",
-    "why.reason4.desc": "Nothing sends without your explicit approval. You stay in the loop, always.",
+    "why.subtitle": "AI crafts. You review.",
+    "why.subtitleBold": "Nothing goes out unchecked.",
+    "why.reason1.title": "AI writes, you verify",
+    "why.reason1.desc": "AI generates tailored emails. You review every one before it's sent — catching mistakes, hallucinations, and tone issues.",
+    "why.reason2.title": "Full control before sending",
+    "why.reason2.desc": "Edit, approve, or reject each email. Nothing leaves your outbox without your explicit sign-off.",
+    "why.reason3.title": "Send from your own domain",
+    "why.reason3.desc": "Emails are sent from your verified domain, building trust and deliverability.",
+    "why.reason4.title": "Scale without losing the personal touch",
+    "why.reason4.desc": "Generate hundreds of personalized emails, then review them as if you wrote each one yourself.",
 
     // Pricing
     "pricing.title": "Simple, transparent pricing",
@@ -439,16 +439,16 @@ export const translations = {
 
     // Why SendSafe
     "why.title": "Hvorfor SendSafe?",
-    "why.subtitle": "SendSafe genererer ikke bare e-poster.",
-    "why.subtitleBold": "Den verifiserer dem.",
-    "why.reason1.title": "Forhindrer hallusinerte selskapsfakta",
-    "why.reason1.desc": "AI-gjennomgang fanger oppdiktede påstander om selskaper før de når prospektene dine.",
-    "why.reason2.title": "Fanger feil personalisering",
-    "why.reason2.desc": "Sikrer at navn, titler og selskapsdetaljer er nøyaktige i hver e-post.",
-    "why.reason3.title": "Reduserer spam-utløsende språk",
-    "why.reason3.desc": "Flagger ord og mønstre som øker sjansen for å havne i spam-mapper.",
-    "why.reason4.title": "Holder mennesker i kontroll",
-    "why.reason4.desc": "Ingenting sendes uten din eksplisitte godkjenning. Du er alltid i løkken.",
+    "why.subtitle": "AI lager. Du gjennomgår.",
+    "why.subtitleBold": "Ingenting sendes uten kontroll.",
+    "why.reason1.title": "AI skriver, du verifiserer",
+    "why.reason1.desc": "AI genererer skreddersydde e-poster. Du gjennomgår hver eneste en før den sendes — og fanger feil, hallusinasjoner og toneproblemer.",
+    "why.reason2.title": "Full kontroll før sending",
+    "why.reason2.desc": "Rediger, godkjenn eller avvis hver e-post. Ingenting forlater utboksen uten din godkjenning.",
+    "why.reason3.title": "Send fra eget domene",
+    "why.reason3.desc": "E-poster sendes fra ditt verifiserte domene, som bygger tillit og leveringsevne.",
+    "why.reason4.title": "Skaler uten å miste det personlige",
+    "why.reason4.desc": "Generer hundrevis av personaliserte e-poster, og gjennomgå dem som om du skrev hver enkelt selv.",
 
     // Pricing
     "pricing.title": "Enkel, transparent prissetting",
