@@ -22,7 +22,7 @@ export const translations = {
 
     // Hero
     "hero.badge": "AI-native email platform",
-    "hero.headline": "Tailored direct emails —",
+    "hero.headline": "AI-tailored direct emails —",
     "hero.headlineHighlight": "reviewed before they're sent",
     "hero.subheadline": "SendSafe is an AI-native SaaS that creates and sends tailored direct emails from your own domain — that you review before they are sent.",
     "hero.cta": "Upload your leads",
@@ -404,7 +404,7 @@ export const translations = {
 
     // Hero
     "hero.badge": "AI-native e-postplattform",
-    "hero.headline": "Skreddersydde direkte e-poster —",
+    "hero.headline": "AI-skreddersydde direkte e-poster —",
     "hero.headlineHighlight": "gjennomgått før de sendes",
     "hero.subheadline": "SendSafe er en AI-native SaaS som lager og sender skreddersydde direkte e-poster fra ditt eget domene — som du gjennomgår før de sendes.",
     "hero.cta": "Last opp dine kontakter",
