@@ -1,20 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Search, Sparkles, FileText, Lock, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
 import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 
-const tones = ["professional", "friendly", "direct"] as const;
-const toneKeys = {
-  professional: "onboarding.tone.professional",
-  friendly: "onboarding.tone.friendly",
-  direct: "onboarding.tone.direct",
-} as const;
-
-const steps = ["step1", "step2", "step3"] as const;
+const steps = ["step1", "step2"] as const;
 
 const CreatePage = () => {
   const { t } = useLanguage();
@@ -34,20 +27,7 @@ const CreatePage = () => {
   const groupFilterRef = useRef<HTMLDivElement>(null);
   const industryFilterRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
-  const [mode, setMode] = useState<CreateMode>("standard");
   const [campaignName, setCampaignName] = useState("");
-  // AI mode
-  const [tone, setTone] = useState<string>("");
-  const [toneInitialized, setToneInitialized] = useState(false);
-  const [instructions, setInstructions] = useState("");
-
-  // Initialize tone from profile default
-  useEffect(() => {
-    if (profile?.tone && !toneInitialized) {
-      setTone(profile.tone);
-      setToneInitialized(true);
-    }
-  }, [profile?.tone, toneInitialized]);
 
   // Close filter dropdowns on outside click
   useEffect(() => {
@@ -117,25 +97,33 @@ const CreatePage = () => {
   };
 
   const canGenerate =
-    mode === "ai"
-      ? instructions.trim().length > 0
-      : templateSubject.trim().length > 0 && templateBody.trim().length > 0;
+    campaignName.trim().length > 0 &&
+    templateSubject.trim().length > 0 &&
+    templateBody.trim().length > 0;
 
   const handleGenerate = async () => {
-    const contactIds = Array.from(selectedIds);
     await generateEmails.mutateAsync({
-      contactIds,
+      contactIds: Array.from(selectedIds),
       contacts: leads,
-      mode,
-      campaignName: campaignName.trim() || `Campaign ${new Date().toLocaleDateString()}`,
-      tone: mode === "ai" ? (tone || "professional") : undefined,
-      goal: mode === "ai" ? (profile?.goal || "sales") : undefined,
-      instructions: mode === "ai" ? instructions : undefined,
-      templateSubject: mode === "standard" ? templateSubject : undefined,
-      templateBody: mode === "standard" ? templateBody : undefined,
+      mode: "hybrid",
+      campaignName: campaignName.trim(),
+      tone: profile?.tone || "professional",
+      goal: profile?.goal || "sales",
+      templateSubject,
+      templateBody,
     });
     navigate("/dashboard/review");
   };
+
+  const systemPromptText = [
+    `Tone: ${profile?.tone || "professional"}`,
+    `Oppsøkingsmål: ${profile?.goal || "sales"}`,
+    `Kampanje: "${campaignName || "…"}"`,
+    "",
+    `Du skriver på vegne av brukeren. For hver mottaker har du tilgang til navn, selskap og bransje.`,
+    `Tekst inni [...] erstattes av AI per mottaker basert på mottakerens profil og hele e-postens kontekst.`,
+    `Tekst utenfor [...] forblir nøyaktig slik brukeren har skrevet det.`,
+  ].join("\n");
 
   return (
     <div>
@@ -323,44 +311,62 @@ const CreatePage = () => {
         </div>
       )}
 
-      {/* Step 2: Choose mode */}
+      {/* Step 2: Write email */}
       {step === 1 && (
         <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="mb-4 font-heading text-base font-semibold text-foreground">{t("create.modeTitle")}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <button
-              onClick={() => setMode("standard")}
-              className={`flex flex-col items-start gap-2 rounded-xl border-2 p-5 text-left transition-colors ${
-                mode === "standard"
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:border-primary/30"
-              }`}
-            >
-              <FileText className={`h-6 w-6 ${mode === "standard" ? "text-primary" : "text-muted-foreground"}`} />
-              <span className="font-heading text-sm font-semibold text-foreground">{t("create.modeStandard")}</span>
-              <span className="text-xs text-muted-foreground">{t("create.modeStandardDesc")}</span>
-            </button>
-            <button
-              onClick={() => { if (profile?.plan !== "free") setMode("ai"); }}
-              disabled={profile?.plan === "free"}
-              className={`flex flex-col items-start gap-2 rounded-xl border-2 p-5 text-left transition-colors ${
-                profile?.plan === "free"
-                  ? "cursor-not-allowed border-border opacity-60"
-                  : mode === "ai"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/30"
-              }`}
-            >
-              {profile?.plan === "free" ? (
-                <Lock className="h-6 w-6 text-muted-foreground" />
-              ) : (
-                <Sparkles className={`h-6 w-6 ${mode === "ai" ? "text-primary" : "text-muted-foreground"}`} />
-              )}
-              <span className="font-heading text-sm font-semibold text-foreground">{t("create.modeAi")}</span>
-              <span className="text-xs text-muted-foreground">
-                {profile?.plan === "free" ? t("plan.aiDisabled") : t("create.modeAiDesc")}
-              </span>
-            </button>
+          {/* System prompt — read only */}
+          <div className="mb-6">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("create.systemPromptLabel")}</p>
+            <div className="rounded-lg border border-border bg-accent/20 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line select-none">
+              {systemPromptText}
+            </div>
+          </div>
+
+          {/* Hybrid hint */}
+          <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="text-sm">
+              <p className="font-semibold text-foreground">{t("create.hybridHint")}</p>
+              <p className="mt-0.5 text-muted-foreground">{t("create.hybridHintDetail")}</p>
+            </div>
+          </div>
+
+          {/* Campaign name */}
+          <div className="mb-5">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              {t("create.campaignName")} <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder={t("create.campaignNamePlaceholder")}
+              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {/* Subject */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateSubject")}</label>
+            <input
+              type="text"
+              value={templateSubject}
+              onChange={(e) => setTemplateSubject(e.target.value)}
+              placeholder={t("create.hybridSubjectExample")}
+              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
+          {/* Body */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateBody")}</label>
+            <textarea
+              value={templateBody}
+              onChange={(e) => setTemplateBody(e.target.value)}
+              rows={10}
+              placeholder={t("create.hybridBodyPlaceholder")}
+              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
           </div>
 
           <div className="mt-6 flex items-center justify-between">
@@ -371,113 +377,11 @@ const CreatePage = () => {
               <ArrowLeft className="h-4 w-4" /> {t("create.back")}
             </button>
             <button
-              onClick={() => setStep(2)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              {t("create.next")} <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Write content + generate */}
-      {step === 2 && (
-        <div className="rounded-xl border border-border bg-card p-6">
-          {/* Campaign name */}
-          <div className="mb-5">
-            <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.campaignName")}</label>
-            <input
-              type="text"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-              placeholder={t("create.campaignNamePlaceholder")}
-              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          {mode === "ai" ? (
-            <>
-              {/* Tone selector */}
-              <div className="mb-5">
-                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.tone")}</label>
-                <div className="flex gap-3">
-                  {tones.map((t_) => (
-                    <button
-                      key={t_}
-                      onClick={() => setTone(t_)}
-                      className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                        tone === t_
-                          ? "border-primary bg-primary/5 text-foreground"
-                          : "border-border bg-accent text-foreground hover:border-primary/30"
-                      }`}
-                    >
-                      {t(toneKeys[t_])}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* System prompt preview */}
-              <div className="mb-5">
-                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.systemPrompt")}</label>
-                <div className="rounded-lg border border-border bg-accent/20 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line">
-                  {t(`create.systemPromptText.${tone || "professional"}` as "create.systemPromptText.professional")}
-                </div>
-              </div>
-
-              {/* User prompt / instructions */}
-              <div className="mb-5">
-                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.userPrompt")}</label>
-                <p className="mb-2 text-xs text-muted-foreground">
-                  {t(`create.goalHint.${profile?.goal || "sales"}` as "create.goalHint.sales")}
-                </p>
-                <textarea
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={6}
-                  placeholder={t("create.instructionsPlaceholder")}
-                  className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="mb-4">
-                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateSubject")}</label>
-                <input
-                  type="text"
-                  value={templateSubject}
-                  onChange={(e) => setTemplateSubject(e.target.value)}
-                  placeholder={t("create.templateSubjectPlaceholder")}
-                  className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateBody")}</label>
-                <textarea
-                  value={templateBody}
-                  onChange={(e) => setTemplateBody(e.target.value)}
-                  rows={8}
-                  placeholder={t("create.templateBodyPlaceholder")}
-                  className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </>
-          )}
-
-          <div className="mt-6 flex items-center justify-between">
-            <button
-              onClick={() => setStep(1)}
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" /> {t("create.back")}
-            </button>
-            <button
               onClick={handleGenerate}
               disabled={!canGenerate || generateEmails.isPending}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {mode === "ai" ? <Sparkles className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+              <Sparkles className="h-4 w-4" />
               {generateEmails.isPending ? t("create.generating") : t("create.generate")}
             </button>
           </div>

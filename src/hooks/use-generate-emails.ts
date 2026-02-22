@@ -3,43 +3,45 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Lead, Email } from "@/types/database";
 
-export type CreateMode = "ai" | "standard";
+export type CreateMode = "hybrid";
 
 interface GenerateEmailsInput {
   contactIds: string[];
   contacts: Lead[];
   mode: CreateMode;
   campaignName: string;
-  // AI mode
   tone?: string;
   goal?: string;
-  instructions?: string;
-  // Standard mode
-  templateSubject?: string;
-  templateBody?: string;
+  templateSubject: string;
+  templateBody: string;
 }
 
-function generateMockEmail(contact: Lead, instructions: string): { subject: string; body: string } {
-  const name = contact.contact_name || "there";
-  const company = contact.company;
-
-  const subject = `Quick note for ${company}`;
-  const body = `Hi ${name},\n\nI wanted to reach out regarding ${company}.\n\n${instructions}\n\nI'd love to set up a quick call to discuss how we can work together.\n\nBest regards`;
-
-  return { subject, body };
-}
-
-function generateStandardEmail(
+function generateHybridEmail(
   contact: Lead,
   templateSubject: string,
-  templateBody: string
+  templateBody: string,
 ): { subject: string; body: string } {
   const name = contact.contact_name || "";
-  const firstName = name.split(" ")[0] || "Hei";
-  const greeting = `Hei ${firstName},`;
+  const firstName = name.split(" ")[0] || "";
+  const company = contact.company;
+  const industry = contact.industry || "";
+
+  const fillSlot = (instruction: string): string => {
+    const lower = instruction.toLowerCase();
+    if (lower.includes("fornavn") || lower.includes("first name")) return firstName || name;
+    if (lower.includes("navn") || lower.includes("name")) return name || firstName;
+    if (lower.includes("selskap") || lower.includes("bedrift") || lower.includes("company")) return company;
+    if (lower.includes("bransje") || lower.includes("industry")) return industry;
+    // For all other slots: return instruction as-is (real impl would call AI here)
+    return instruction;
+  };
+
+  const fill = (text: string) =>
+    text.replace(/\[([^\]]+)\]/g, (_, instr) => fillSlot(instr.trim()));
+
   return {
-    subject: templateSubject,
-    body: `${greeting}\n\n${templateBody}`,
+    subject: fill(templateSubject),
+    body: fill(templateBody),
   };
 }
 
@@ -50,52 +52,47 @@ export function useGenerateEmails() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contactIds, contacts, mode, campaignName, tone, goal, instructions, templateSubject, templateBody }: GenerateEmailsInput) => {
+    mutationFn: async ({ contactIds, contacts, mode, campaignName, tone, goal, templateSubject, templateBody }: GenerateEmailsInput) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Check AI credit limit for AI mode
-      if (mode === "ai") {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("plan")
-          .eq("id", user.id)
-          .single();
+      // Check AI credit limit
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
 
-        const plan = profile?.plan ?? "free";
-        const aiLimit = PLAN_AI_LIMITS[plan] ?? 0;
+      const plan = profile?.plan ?? "free";
+      const aiLimit = PLAN_AI_LIMITS[plan] ?? 0;
 
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-        const { count: aiEmails } = await supabase
-          .from("emails")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("generation_mode", "ai")
-          .gte("created_at", startOfMonth);
-        const { count: enrichments } = await supabase
-          .from("leads")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .not("enriched_at", "is", null)
-          .gte("enriched_at", startOfMonth);
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      const { count: aiEmails } = await supabase
+        .from("emails")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("generation_mode", "hybrid")
+        .gte("created_at", startOfMonth);
+      const { count: enrichments } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("enriched_at", "is", null)
+        .gte("enriched_at", startOfMonth);
 
-        const remaining = aiLimit - ((aiEmails ?? 0) + (enrichments ?? 0));
-        if (contactIds.length > remaining) {
-          throw new Error(
-            remaining <= 0
-              ? "Monthly AI credit limit reached. Upgrade your plan for more AI credits."
-              : `Only ${remaining} AI credits remaining this month. Select fewer contacts or upgrade your plan.`
-          );
-        }
+      const remaining = aiLimit - ((aiEmails ?? 0) + (enrichments ?? 0));
+      if (contactIds.length > remaining) {
+        throw new Error(
+          remaining <= 0
+            ? "Monthly AI credit limit reached. Upgrade your plan for more AI credits."
+            : `Only ${remaining} AI credits remaining this month. Select fewer contacts or upgrade your plan.`
+        );
       }
 
       const campaignId = crypto.randomUUID();
       const selectedContacts = contacts.filter((c) => contactIds.includes(c.id));
 
       const emailRows = selectedContacts.map((contact) => {
-        const { subject, body } =
-          mode === "ai"
-            ? generateMockEmail(contact, instructions || "")
-            : generateStandardEmail(contact, templateSubject || "", templateBody || "");
+        const { subject, body } = generateHybridEmail(contact, templateSubject, templateBody);
 
         return {
           user_id: user.id,
