@@ -292,8 +292,15 @@ const CreatePage = () => {
                       <div className="flex-1">
                         <span className="text-sm font-medium text-foreground">{lead.contact_name || lead.contact_email}</span>
                         <span className="ml-2 text-xs text-muted-foreground">{lead.company}</span>
+                        {memberships
+                          .filter((m) => m.contact_id === lead.id)
+                          .map((m) => groups.find((g) => g.id === m.group_id))
+                          .filter(Boolean)
+                          .map((g) => (
+                            <span key={g!.id} className="ml-1.5 rounded bg-primary/10 px-1.5 py-0.5 text-xs text-primary">{g!.name}</span>
+                          ))}
                         {lead.industry && (
-                          <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.industry}</span>
+                          <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.industry}</span>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">{lead.contact_email}</span>
