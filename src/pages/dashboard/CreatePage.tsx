@@ -104,7 +104,6 @@ const CreatePage = () => {
   const handleGenerate = async () => {
     await generateEmails.mutateAsync({
       contactIds: Array.from(selectedIds),
-      contacts: leads,
       mode: "hybrid",
       campaignName: campaignName.trim(),
       tone: profile?.tone || "professional",
