@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Search, Sparkles, FileText, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, Sparkles, FileText, Lock, ChevronDown } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
 import { useProfile } from "@/hooks/use-profile";
@@ -27,8 +27,12 @@ const CreatePage = () => {
 
   const [step, setStep] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [filterGroupId, setFilterGroupId] = useState<string>("");
-  const [filterIndustry, setFilterIndustry] = useState<string>("");
+  const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
+  const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
+  const [showGroupFilter, setShowGroupFilter] = useState(false);
+  const [showIndustryFilter, setShowIndustryFilter] = useState(false);
+  const groupFilterRef = useRef<HTMLDivElement>(null);
+  const industryFilterRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<CreateMode>("standard");
   const [campaignName, setCampaignName] = useState("");
@@ -44,6 +48,24 @@ const CreatePage = () => {
       setToneInitialized(true);
     }
   }, [profile?.tone, toneInitialized]);
+
+  // Close filter dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (groupFilterRef.current && !groupFilterRef.current.contains(e.target as Node)) setShowGroupFilter(false);
+      if (industryFilterRef.current && !industryFilterRef.current.contains(e.target as Node)) setShowIndustryFilter(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleFilterGroup = (id: string) => {
+    setFilterGroupIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+
+  const toggleFilterIndustry = (ind: string) => {
+    setFilterIndustries((prev) => { const next = new Set(prev); if (next.has(ind)) next.delete(ind); else next.add(ind); return next; });
+  };
   // Standard mode
   const [templateSubject, setTemplateSubject] = useState("");
   const [templateBody, setTemplateBody] = useState("");
@@ -55,12 +77,11 @@ const CreatePage = () => {
 
   const filteredLeads = useMemo(() => {
     let result = leads;
-    if (filterGroupId) {
-      const groupContactIds = memberships.filter((m) => m.group_id === filterGroupId).map((m) => m.contact_id);
-      result = result.filter((l) => groupContactIds.includes(l.id));
+    if (filterGroupIds.size > 0) {
+      result = result.filter((l) => memberships.some((m) => m.contact_id === l.id && filterGroupIds.has(m.group_id)));
     }
-    if (filterIndustry) {
-      result = result.filter((l) => l.industry === filterIndustry);
+    if (filterIndustries.size > 0) {
+      result = result.filter((l) => l.industry != null && filterIndustries.has(l.industry));
     }
     if (search) {
       const q = search.toLowerCase();
@@ -72,7 +93,7 @@ const CreatePage = () => {
       );
     }
     return result;
-  }, [leads, filterGroupId, filterIndustry, search, memberships]);
+  }, [leads, filterGroupIds, filterIndustries, search, memberships]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -159,28 +180,58 @@ const CreatePage = () => {
             <>
               {/* Filters row */}
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <select
-                  value={filterGroupId}
-                  onChange={(e) => setFilterGroupId(e.target.value)}
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                >
-                  <option value="">{t("create.allContacts")}</option>
-                  {groups.map((g) => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                {/* Group multi-select dropdown */}
+                {groups.length > 0 && (
+                  <div ref={groupFilterRef} className="relative">
+                    <button
+                      onClick={() => { setShowGroupFilter((v) => !v); setShowIndustryFilter(false); }}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterGroupIds.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}
+                    >
+                      {t("contacts.col.groups")}
+                      {filterGroupIds.size > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">{filterGroupIds.size}</span>}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {showGroupFilter && (
+                      <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                        {groups.map((g) => (
+                          <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
+                            <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
+                            {g.name}
+                          </label>
+                        ))}
+                        {filterGroupIds.size > 0 && (
+                          <button onClick={() => setFilterGroupIds(new Set())} className="mt-1 w-full rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{t("contacts.filterAll")}</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
+                {/* Industry multi-select dropdown */}
                 {uniqueIndustries.length > 0 && (
-                  <select
-                    value={filterIndustry}
-                    onChange={(e) => setFilterIndustry(e.target.value)}
-                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
-                  >
-                    <option value="">{t("create.allIndustries")}</option>
-                    {uniqueIndustries.map((ind) => (
-                      <option key={ind} value={ind}>{ind}</option>
-                    ))}
-                  </select>
+                  <div ref={industryFilterRef} className="relative">
+                    <button
+                      onClick={() => { setShowIndustryFilter((v) => !v); setShowGroupFilter(false); }}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterIndustries.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}
+                    >
+                      {t("contacts.col.industry")}
+                      {filterIndustries.size > 0 && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground">{filterIndustries.size}</span>}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {showIndustryFilter && (
+                      <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                        {uniqueIndustries.map((ind) => (
+                          <label key={ind} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
+                            <input type="checkbox" checked={filterIndustries.has(ind)} onChange={() => toggleFilterIndustry(ind)} className="h-4 w-4 rounded border-border accent-primary" />
+                            {ind}
+                          </label>
+                        ))}
+                        {filterIndustries.size > 0 && (
+                          <button onClick={() => setFilterIndustries(new Set())} className="mt-1 w-full rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground">{t("contacts.filterAllIndustries")}</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 <div className="relative flex-1 min-w-40">
