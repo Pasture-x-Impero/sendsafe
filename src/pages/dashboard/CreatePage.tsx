@@ -28,6 +28,7 @@ const CreatePage = () => {
   const [step, setStep] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterGroupId, setFilterGroupId] = useState<string>("");
+  const [filterIndustry, setFilterIndustry] = useState<string>("");
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<CreateMode>("standard");
   const [campaignName, setCampaignName] = useState("");
@@ -47,11 +48,19 @@ const CreatePage = () => {
   const [templateSubject, setTemplateSubject] = useState("");
   const [templateBody, setTemplateBody] = useState("");
 
+  const uniqueIndustries = useMemo(() => {
+    const industries = leads.map((l) => l.industry).filter((ind): ind is string => !!ind);
+    return Array.from(new Set(industries)).sort();
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
     let result = leads;
     if (filterGroupId) {
       const groupContactIds = memberships.filter((m) => m.group_id === filterGroupId).map((m) => m.contact_id);
       result = result.filter((l) => groupContactIds.includes(l.id));
+    }
+    if (filterIndustry) {
+      result = result.filter((l) => l.industry === filterIndustry);
     }
     if (search) {
       const q = search.toLowerCase();
@@ -63,7 +72,7 @@ const CreatePage = () => {
       );
     }
     return result;
-  }, [leads, filterGroupId, search, memberships]);
+  }, [leads, filterGroupId, filterIndustry, search, memberships]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -74,11 +83,15 @@ const CreatePage = () => {
     });
   };
 
-  const selectAll = () => {
-    setSelectedIds(new Set(filteredLeads.map((l) => l.id)));
+  const addAllFiltered = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredLeads.forEach((l) => next.add(l.id));
+      return next;
+    });
   };
 
-  const deselectAll = () => {
+  const clearSelection = () => {
     setSelectedIds(new Set());
   };
 
@@ -144,7 +157,8 @@ const CreatePage = () => {
             </div>
           ) : (
             <>
-              <div className="mb-4 flex flex-wrap items-center gap-3">
+              {/* Filters row */}
+              <div className="mb-3 flex flex-wrap items-center gap-2">
                 <select
                   value={filterGroupId}
                   onChange={(e) => setFilterGroupId(e.target.value)}
@@ -156,7 +170,20 @@ const CreatePage = () => {
                   ))}
                 </select>
 
-                <div className="relative flex-1">
+                {uniqueIndustries.length > 0 && (
+                  <select
+                    value={filterIndustry}
+                    onChange={(e) => setFilterIndustry(e.target.value)}
+                    className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground"
+                  >
+                    <option value="">{t("create.allIndustries")}</option>
+                    {uniqueIndustries.map((ind) => (
+                      <option key={ind} value={ind}>{ind}</option>
+                    ))}
+                  </select>
+                )}
+
+                <div className="relative flex-1 min-w-40">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
@@ -166,36 +193,62 @@ const CreatePage = () => {
                     className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
+              </div>
 
-                <span className="text-sm text-muted-foreground">
-                  {selectedIds.size} {t("create.selectedCount")}
+              {/* Actions row */}
+              <div className="mb-3 flex items-center gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {t("create.showing")} <span className="font-medium text-foreground">{filteredLeads.length}</span> {t("create.contacts")}
+                  {selectedIds.size > 0 && (
+                    <> · <span className="font-medium text-primary">{selectedIds.size}</span> {t("create.selectedCount")}</>
+                  )}
                 </span>
-
-                <button onClick={selectAll} className="text-sm text-primary hover:underline">{t("create.selectAll")}</button>
-                <button onClick={deselectAll} className="text-sm text-muted-foreground hover:underline">{t("create.deselectAll")}</button>
+                <div className="ml-auto flex items-center gap-3">
+                  <button
+                    onClick={addAllFiltered}
+                    disabled={filteredLeads.length === 0}
+                    className="rounded-md bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-40"
+                  >
+                    {t("create.addAll")} ({filteredLeads.length})
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button onClick={clearSelection} className="text-xs text-muted-foreground hover:text-foreground">
+                      {t("create.clearSelection")}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="max-h-80 space-y-1 overflow-y-auto">
-                {filteredLeads.map((lead) => (
-                  <label
-                    key={lead.id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
-                      selectedIds.has(lead.id) ? "bg-primary/5" : "hover:bg-accent/50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(lead.id)}
-                      onChange={() => toggleSelect(lead.id)}
-                      className="h-4 w-4 rounded border-border accent-primary"
-                    />
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-foreground">{lead.contact_name || lead.contact_email}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{lead.company}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{lead.contact_email}</span>
-                  </label>
-                ))}
+                {filteredLeads.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-muted-foreground">
+                    {t("create.noContacts")}
+                  </div>
+                ) : (
+                  filteredLeads.map((lead) => (
+                    <label
+                      key={lead.id}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                        selectedIds.has(lead.id) ? "bg-primary/5" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        className="h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-foreground">{lead.contact_name || lead.contact_email}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{lead.company}</span>
+                        {lead.industry && (
+                          <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.industry}</span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{lead.contact_email}</span>
+                    </label>
+                  ))
+                )}
               </div>
 
               <div className="mt-6 flex justify-end">
