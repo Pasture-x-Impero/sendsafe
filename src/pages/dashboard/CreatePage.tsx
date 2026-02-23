@@ -6,6 +6,7 @@ import { useLeads } from "@/hooks/use-leads";
 import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
+import type { Email } from "@/types/database";
 
 const tones = ["professional", "friendly", "direct"] as const;
 const toneKeys = {
@@ -14,7 +15,7 @@ const toneKeys = {
   direct: "onboarding.tone.direct",
 } as const;
 
-const steps = ["step1", "step2"] as const;
+const steps = ["step1", "step2", "step3"] as const;
 
 const CreatePage = () => {
   const { t } = useLanguage();
@@ -36,6 +37,7 @@ const CreatePage = () => {
   const [search, setSearch] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [tone, setTone] = useState<string>(profile?.tone || "professional");
+  const [generatedEmails, setGeneratedEmails] = useState<Email[]>([]);
 
   // Sync tone from profile once loaded
   useEffect(() => {
@@ -115,7 +117,7 @@ const CreatePage = () => {
     templateBody.trim().length > 0;
 
   const handleGenerate = async () => {
-    await generateEmails.mutateAsync({
+    const emails = await generateEmails.mutateAsync({
       contactIds: Array.from(selectedIds),
       mode: "hybrid",
       campaignName: campaignName.trim(),
@@ -124,7 +126,8 @@ const CreatePage = () => {
       templateSubject,
       templateBody,
     });
-    navigate("/dashboard/review");
+    setGeneratedEmails(emails ?? []);
+    setStep(2);
   };
 
   const systemPromptText = [
@@ -415,6 +418,50 @@ const CreatePage = () => {
             >
               <Sparkles className="h-4 w-4" />
               {generateEmails.isPending ? t("create.generating") : t("create.generate")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Preview drafts */}
+      {step === 2 && (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <p className="mb-5 text-sm text-muted-foreground">{t("create.previewDesc")}</p>
+
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+            {generatedEmails.map((email) => (
+              <div key={email.id} className="rounded-lg border border-border bg-background p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{email.contact_name || email.contact_email}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">{email.company}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{email.contact_email}</span>
+                </div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("review.subject")}
+                </p>
+                <p className="mb-3 text-sm font-medium text-foreground">{email.subject}</p>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("review.body")}
+                </p>
+                <p className="whitespace-pre-line text-sm text-foreground line-clamp-4">{email.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <button
+              onClick={() => setStep(1)}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" /> {t("create.back")}
+            </button>
+            <button
+              onClick={() => navigate("/dashboard/review")}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {t("create.goToReview")} <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
