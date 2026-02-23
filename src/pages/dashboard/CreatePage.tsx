@@ -409,17 +409,12 @@ const CreatePage = () => {
               rows={10}
               className="w-full rounded-b-none rounded-t-lg border border-b-0 border-border bg-accent/30 px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            {profile?.email_signature ? (
+            {profile?.email_signature && (
               <div className="rounded-b-lg border border-border bg-accent/10 px-4 py-3">
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("create.signatureLabel")}</p>
                 <div
                   className="text-sm text-muted-foreground [&_*]:max-w-full"
                   dangerouslySetInnerHTML={{ __html: profile.email_signature }}
                 />
-              </div>
-            ) : (
-              <div className="rounded-b-lg border border-border bg-accent/10 px-4 py-2">
-                <p className="text-xs text-muted-foreground">{t("create.signatureLabel")}</p>
               </div>
             )}
           </div>
@@ -467,8 +462,7 @@ const CreatePage = () => {
                 </p>
                 <p className="whitespace-pre-line text-sm text-foreground line-clamp-4">{email.body}</p>
                 {profile?.email_signature && (
-                  <div className="mt-3 border-t border-border pt-3">
-                    <p className="mb-1 text-xs font-medium text-muted-foreground">{t("create.signatureLabel")}</p>
+                  <div className="mt-3">
                     <div
                       className="text-sm text-muted-foreground [&_*]:max-w-full"
                       dangerouslySetInnerHTML={{ __html: profile.email_signature }}
