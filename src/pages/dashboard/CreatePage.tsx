@@ -7,6 +7,13 @@ import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 
+const tones = ["professional", "friendly", "direct"] as const;
+const toneKeys = {
+  professional: "onboarding.tone.professional",
+  friendly: "onboarding.tone.friendly",
+  direct: "onboarding.tone.direct",
+} as const;
+
 const steps = ["step1", "step2"] as const;
 
 const CreatePage = () => {
@@ -28,6 +35,12 @@ const CreatePage = () => {
   const industryFilterRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
   const [campaignName, setCampaignName] = useState("");
+  const [tone, setTone] = useState<string>(profile?.tone || "professional");
+
+  // Sync tone from profile once loaded
+  useEffect(() => {
+    if (profile?.tone) setTone(profile.tone);
+  }, [profile?.tone]);
 
   // Close filter dropdowns on outside click
   useEffect(() => {
@@ -106,7 +119,7 @@ const CreatePage = () => {
       contactIds: Array.from(selectedIds),
       mode: "hybrid",
       campaignName: campaignName.trim(),
-      tone: profile?.tone || "professional",
+      tone,
       goal: profile?.goal || "sales",
       templateSubject,
       templateBody,
@@ -115,7 +128,7 @@ const CreatePage = () => {
   };
 
   const systemPromptText = [
-    `Tone: ${profile?.tone || "professional"}`,
+    `Tone: ${tone}`,
     `Oppsøkingsmål: ${profile?.goal || "sales"}`,
     `Kampanje: "${campaignName || "…"}"`,
     "",
@@ -313,7 +326,27 @@ const CreatePage = () => {
       {/* Step 2: Write email */}
       {step === 1 && (
         <div className="rounded-xl border border-border bg-card p-6">
-          {/* System prompt — read only */}
+          {/* Tone selector */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-semibold text-foreground">{t("create.tone")}</label>
+            <div className="flex gap-2">
+              {tones.map((t_) => (
+                <button
+                  key={t_}
+                  onClick={() => setTone(t_)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    tone === t_
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border bg-accent text-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {t(toneKeys[t_])}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* System prompt — read only, updates live with tone */}
           <div className="mb-6">
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("create.systemPromptLabel")}</p>
             <div className="rounded-lg border border-border bg-accent/20 px-4 py-3 text-sm text-muted-foreground whitespace-pre-line select-none">
