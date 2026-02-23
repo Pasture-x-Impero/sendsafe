@@ -25,8 +25,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
-    if (!openaiKey) return err("OpenAI API key not configured", 500);
+    const openaiKey = Deno.env.get("GROQ_API_KEY");
+    if (!openaiKey) return err("Groq API key not configured", 500);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return err("Missing authorization", 401);
@@ -119,14 +119,14 @@ Deno.serve(async (req) => {
       let body = template_body;
 
       try {
-        const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${openaiKey}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini",
+            model: "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },

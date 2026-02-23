@@ -18,10 +18,10 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    const openaiKey = Deno.env.get("GROQ_API_KEY");
     if (!openaiKey) {
       return new Response(
-        JSON.stringify({ error: "OpenAI API key not configured" }),
+        JSON.stringify({ error: "Groq API key not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -140,7 +140,7 @@ If the domain is known, generate the email using common formats like firstname@d
 Respond with ONLY valid JSON, no markdown or explanation.`;
 
         const aiResponse = await fetch(
-          "https://api.openai.com/v1/chat/completions",
+          "https://api.groq.com/openai/v1/chat/completions",
           {
             method: "POST",
             headers: {
@@ -148,7 +148,7 @@ Respond with ONLY valid JSON, no markdown or explanation.`;
               Authorization: `Bearer ${openaiKey}`,
             },
             body: JSON.stringify({
-              model: "gpt-4o-mini",
+              model: "llama-3.3-70b-versatile",
               messages: [
                 {
                   role: "system",
