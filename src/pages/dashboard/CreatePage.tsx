@@ -24,6 +24,13 @@ const goalKeys = {
   other: "onboarding.goal.other",
 } as const;
 
+const campaignLanguages = [
+  { code: "no", label: "Norsk" },
+  { code: "en", label: "Engelsk" },
+  { code: "sv", label: "Svensk" },
+  { code: "da", label: "Dansk" },
+] as const;
+
 const steps = ["step1", "step2", "step3"] as const;
 
 const CreatePage = () => {
@@ -47,6 +54,7 @@ const CreatePage = () => {
   const [campaignName, setCampaignName] = useState("");
   const [tone, setTone] = useState<string>(profile?.tone || "professional");
   const [goal, setGoal] = useState<string>(profile?.goal || "sales");
+  const [campaignLanguage, setCampaignLanguage] = useState("no");
   const [generatedEmails, setGeneratedEmails] = useState<Email[]>([]);
 
   // Sync tone and goal from profile once loaded
@@ -135,6 +143,7 @@ const CreatePage = () => {
         campaignName: campaignName.trim(),
         tone,
         goal,
+        language: campaignLanguage,
         templateSubject,
         templateBody,
       });
@@ -147,9 +156,14 @@ const CreatePage = () => {
 
   const firstContact = leads.find((l) => selectedIds.has(l.id)) ?? null;
 
+  const toneLabel = t(toneKeys[tone as keyof typeof toneKeys] || "onboarding.tone.professional");
+  const goalLabel = t(goalKeys[goal as keyof typeof goalKeys] || "onboarding.goal.sales");
+  const languageLabel = campaignLanguages.find((l) => l.code === campaignLanguage)?.label ?? campaignLanguage;
+
   const systemPromptText = [
-    `Tone: ${tone}`,
-    `Oppsøkingsmål: ${goal}`,
+    `Tone: ${toneLabel}`,
+    `Oppsøkingsmål: ${goalLabel}`,
+    `Kampanjespråk: ${languageLabel}`,
     `Kampanje: "${campaignName || "…"}"`,
     "",
     firstContact
@@ -403,6 +417,26 @@ const CreatePage = () => {
                   }`}
                 >
                   {t(toneKeys[t_])}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Language selector */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-semibold text-foreground">{t("create.campaignLanguage")}</label>
+            <div className="flex gap-2">
+              {campaignLanguages.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setCampaignLanguage(l.code)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    campaignLanguage === l.code
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border bg-accent text-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {l.label}
                 </button>
               ))}
             </div>

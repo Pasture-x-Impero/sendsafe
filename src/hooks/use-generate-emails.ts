@@ -10,6 +10,7 @@ interface GenerateEmailsInput {
   campaignName: string;
   tone?: string;
   goal?: string;
+  language?: string;
   templateSubject: string;
   templateBody: string;
 }
@@ -18,7 +19,7 @@ export function useGenerateEmails() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contactIds, campaignName, tone, goal, templateSubject, templateBody }: GenerateEmailsInput) => {
+    mutationFn: async ({ contactIds, campaignName, tone, goal, language, templateSubject, templateBody }: GenerateEmailsInput) => {
       const campaignId = crypto.randomUUID();
 
       const { data, error } = await supabase.functions.invoke("generate-emails", {
@@ -30,6 +31,7 @@ export function useGenerateEmails() {
           template_body: templateBody,
           tone: tone || "professional",
           goal: goal || "sales",
+          language: language || "no",
         },
       });
 

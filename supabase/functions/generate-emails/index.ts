@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return err("Unauthorized", 401);
 
-    const { contact_ids, campaign_name, campaign_id, template_subject, template_body, tone, goal } =
+    const { contact_ids, campaign_name, campaign_id, template_subject, template_body, tone, goal, language } =
       await req.json();
 
     if (!contact_ids?.length || !template_subject || !template_body || !campaign_name) {
@@ -101,9 +101,13 @@ Deno.serve(async (req) => {
     const emailRows = [];
 
     for (const contact of contacts) {
+      const languageNames: Record<string, string> = { no: "Norwegian", en: "English", sv: "Swedish", da: "Danish" };
+      const writingLanguage = languageNames[language] ?? "Norwegian";
+
       const systemPrompt = [
         `You are a ${tone || "professional"} email copywriter for a ${goal || "sales"} outreach campaign named "${campaign_name}".`,
         `You are writing to: ${contact.contact_name || "the recipient"} at ${contact.company}${contact.industry ? ` (industry: ${contact.industry})` : ""}.`,
+        `Write the entire email in ${writingLanguage}.`,
         `Fill in every section marked with [...] in the email template. The text you write inside [...] should be natural, concise, and relevant to this specific recipient.`,
         `Text outside [...] must remain EXACTLY as written — do not modify it.`,
         `Return ONLY valid JSON with "subject" and "body" string fields. No markdown, no explanation.`,
