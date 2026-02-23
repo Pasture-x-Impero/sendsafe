@@ -7,6 +7,13 @@ const corsHeaders = {
 
 const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 500 };
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  no: "Norwegian",
+  en: "English",
+  sv: "Swedish",
+  da: "Danish",
+};
+
 function ok(body: unknown) {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -21,12 +28,94 @@ function err(message: string, status = 400) {
   });
 }
 
+interface ContactContext {
+  contactName: string;
+  company: string;
+  industry: string;
+  campaignName: string;
+  tone: string;
+  goal: string;
+  language: string;
+}
+
+// Fill a single [...] slot by asking AI only about that slot.
+// Text outside the slot is never sent to AI and can never be changed.
+async function fillSlot(
+  instruction: string,
+  context: ContactContext,
+  groqKey: string
+): Promise<string> {
+  const writingLanguage = LANGUAGE_NAMES[context.language] ?? "Norwegian";
+
+  const prompt =
+    `You are writing a ${context.tone} ${context.goal} outreach email in ${writingLanguage} ` +
+    `to ${context.contactName} at ${context.company}` +
+    (context.industry ? ` (industry: ${context.industry})` : "") +
+    ` for campaign "${context.campaignName}".\n\n` +
+    `Complete this instruction: "${instruction}"\n\n` +
+    `Return ONLY the replacement text — no brackets, no quotes, no extra explanation.`;
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${groqKey}`,
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 300,
+    }),
+  });
+
+  const result = await response.json();
+  return result.choices?.[0]?.message?.content?.trim() ?? instruction;
+}
+
+// Replace every [...] slot in a template string.
+// Only slot contents are sent to AI; surrounding text is untouched.
+async function processTemplate(
+  template: string,
+  context: ContactContext,
+  groqKey: string
+): Promise<string> {
+  const regex = /\[([^\]]+)\]/g;
+  const matches: Array<{ index: number; full: string; instruction: string }> = [];
+  let match;
+
+  while ((match = regex.exec(template)) !== null) {
+    matches.push({ index: match.index, full: match[0], instruction: match[1] });
+  }
+
+  if (matches.length === 0) return template; // No slots — return exactly as written
+
+  // Fill each unique instruction once (cache to avoid duplicate API calls)
+  const cache = new Map<string, string>();
+  for (const { instruction } of matches) {
+    if (!cache.has(instruction)) {
+      const replacement = await fillSlot(instruction, context, groqKey);
+      cache.set(instruction, replacement);
+    }
+  }
+
+  // Replace slots from right to left to preserve string indices
+  let result = template;
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const { index, full, instruction } = matches[i];
+    const replacement = cache.get(instruction) ?? instruction;
+    result = result.slice(0, index) + replacement + result.slice(index + full.length);
+  }
+
+  return result;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const openaiKey = Deno.env.get("GROQ_API_KEY");
-    if (!openaiKey) return err("Groq API key not configured", 500);
+    const groqKey = Deno.env.get("GROQ_API_KEY");
+    if (!groqKey) return err("Groq API key not configured", 500);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return err("Missing authorization", 401);
@@ -40,8 +129,16 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return err("Unauthorized", 401);
 
-    const { contact_ids, campaign_name, campaign_id, template_subject, template_body, tone, goal, language } =
-      await req.json();
+    const {
+      contact_ids,
+      campaign_name,
+      campaign_id,
+      template_subject,
+      template_body,
+      tone,
+      goal,
+      language,
+    } = await req.json();
 
     if (!contact_ids?.length || !template_subject || !template_body || !campaign_name) {
       return err("Missing required fields");
@@ -101,58 +198,22 @@ Deno.serve(async (req) => {
     const emailRows = [];
 
     for (const contact of contacts) {
-      const languageNames: Record<string, string> = { no: "Norwegian", en: "English", sv: "Swedish", da: "Danish" };
-      const writingLanguage = languageNames[language] ?? "Norwegian";
-
-      const systemPrompt = [
-        `You are a ${tone || "professional"} email copywriter for a ${goal || "sales"} outreach campaign named "${campaign_name}".`,
-        `You are writing to: ${contact.contact_name || "the recipient"} at ${contact.company}${contact.industry ? ` (industry: ${contact.industry})` : ""}.`,
-        `Write the entire email in ${writingLanguage}.`,
-        `Fill in every section marked with [...] in the email template. The text you write inside [...] should be natural, concise, and relevant to this specific recipient.`,
-        `Text outside [...] must remain EXACTLY as written — do not modify it.`,
-        `Return ONLY valid JSON with "subject" and "body" string fields. No markdown, no explanation.`,
-      ].join(" ");
-
-      const userPrompt =
-        `Fill in the [...] sections for the recipient above.\n\n` +
-        `Subject: ${template_subject}\n\n` +
-        `Body:\n${template_body}\n\n` +
-        `Return ONLY: {"subject": "...", "body": "..."}`;
+      const context: ContactContext = {
+        contactName: contact.contact_name || "the recipient",
+        company: contact.company,
+        industry: contact.industry ?? "",
+        campaignName: campaign_name,
+        tone: tone || "professional",
+        goal: goal || "sales",
+        language: language || "no",
+      };
 
       let subject = template_subject;
       let body = template_body;
 
       try {
-        const aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openaiKey}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-          }),
-        });
-
-        const aiResult = await aiResponse.json();
-        const content = aiResult.choices?.[0]?.message?.content?.trim() ?? "";
-
-        let parsed: { subject?: string; body?: string } = {};
-        try {
-          parsed = JSON.parse(content);
-        } catch {
-          const match = content.match(/\{[\s\S]*\}/);
-          if (match) parsed = JSON.parse(match[0]);
-        }
-
-        if (parsed.subject) subject = parsed.subject;
-        if (parsed.body) body = parsed.body;
+        subject = await processTemplate(template_subject, context, groqKey);
+        body = await processTemplate(template_body, context, groqKey);
       } catch {
         // Fallback: keep template as-is for this contact
       }
