@@ -135,14 +135,24 @@ const CreatePage = () => {
     }
   };
 
+  const firstContact = leads.find((l) => selectedIds.has(l.id)) ?? null;
+
   const systemPromptText = [
     `Tone: ${tone}`,
     `Oppsøkingsmål: ${profile?.goal || "sales"}`,
     `Kampanje: "${campaignName || "…"}"`,
     "",
-    `Du skriver på vegne av brukeren. For hver mottaker har du tilgang til navn, selskap og bransje.`,
-    `Tekst inni [...] erstattes av AI per mottaker basert på mottakerens profil og hele e-postens kontekst.`,
-    `Tekst utenfor [...] forblir nøyaktig slik brukeren har skrevet det.`,
+    firstContact
+      ? [
+          `Eksempel – første mottaker (${selectedIds.size} totalt):`,
+          `  Navn: ${firstContact.contact_name || "–"}`,
+          `  Selskap: ${firstContact.company || "–"}`,
+          `  Bransje: ${firstContact.industry || "–"}`,
+          `  E-post: ${firstContact.contact_email || "–"}`,
+        ].join("\n")
+      : `Ingen mottakere valgt.`,
+    "",
+    `Tekst inni [...] erstattes av AI per mottaker. Tekst utenfor forblir uendret.`,
   ].join("\n");
 
   return (
