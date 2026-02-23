@@ -354,6 +354,20 @@ const CreatePage = () => {
       {/* Step 2: Write email */}
       {step === 1 && (
         <div className="rounded-xl border border-border bg-card p-6">
+          {/* Campaign name */}
+          <div className="mb-5">
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              {t("create.campaignName")} <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder={t("create.campaignNamePlaceholder")}
+              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+
           {/* Goal selector */}
           <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-foreground">{t("create.goal")}</label>
@@ -409,20 +423,6 @@ const CreatePage = () => {
               <p className="font-semibold text-foreground">{t("create.hybridHint")}</p>
               <p className="mt-0.5 text-muted-foreground">{t("create.hybridHintDetail")}</p>
             </div>
-          </div>
-
-          {/* Campaign name */}
-          <div className="mb-5">
-            <label className="mb-1.5 block text-sm font-semibold text-foreground">
-              {t("create.campaignName")} <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-              placeholder={t("create.campaignNamePlaceholder")}
-              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
           </div>
 
           {/* Subject */}
