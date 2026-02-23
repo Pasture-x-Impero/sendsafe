@@ -16,6 +16,14 @@ const toneKeys = {
   direct: "onboarding.tone.direct",
 } as const;
 
+const goals = ["sales", "partnerships", "recruiting", "other"] as const;
+const goalKeys = {
+  sales: "onboarding.goal.sales",
+  partnerships: "onboarding.goal.partnerships",
+  recruiting: "onboarding.goal.recruiting",
+  other: "onboarding.goal.other",
+} as const;
+
 const steps = ["step1", "step2", "step3"] as const;
 
 const CreatePage = () => {
@@ -38,12 +46,14 @@ const CreatePage = () => {
   const [search, setSearch] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [tone, setTone] = useState<string>(profile?.tone || "professional");
+  const [goal, setGoal] = useState<string>(profile?.goal || "sales");
   const [generatedEmails, setGeneratedEmails] = useState<Email[]>([]);
 
-  // Sync tone from profile once loaded
+  // Sync tone and goal from profile once loaded
   useEffect(() => {
     if (profile?.tone) setTone(profile.tone);
-  }, [profile?.tone]);
+    if (profile?.goal) setGoal(profile.goal);
+  }, [profile?.tone, profile?.goal]);
 
   // Close filter dropdowns on outside click
   useEffect(() => {
@@ -124,7 +134,7 @@ const CreatePage = () => {
         mode: "hybrid",
         campaignName: campaignName.trim(),
         tone,
-        goal: profile?.goal || "sales",
+        goal,
         templateSubject,
         templateBody,
       });
@@ -139,7 +149,7 @@ const CreatePage = () => {
 
   const systemPromptText = [
     `Tone: ${tone}`,
-    `Oppsøkingsmål: ${profile?.goal || "sales"}`,
+    `Oppsøkingsmål: ${goal}`,
     `Kampanje: "${campaignName || "…"}"`,
     "",
     firstContact
@@ -344,6 +354,26 @@ const CreatePage = () => {
       {/* Step 2: Write email */}
       {step === 1 && (
         <div className="rounded-xl border border-border bg-card p-6">
+          {/* Goal selector */}
+          <div className="mb-5">
+            <label className="mb-2 block text-sm font-semibold text-foreground">{t("create.goal")}</label>
+            <div className="flex flex-wrap gap-2">
+              {goals.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGoal(g)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    goal === g
+                      ? "border-primary bg-primary/5 text-foreground"
+                      : "border-border bg-accent text-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {t(goalKeys[g])}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Tone selector */}
           <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-foreground">{t("create.tone")}</label>
@@ -400,6 +430,7 @@ const CreatePage = () => {
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
               {t("create.templateSubject")} <span className="text-destructive">*</span>
             </label>
+            <p className="mb-2 text-xs text-muted-foreground">{t("create.hybridSubjectTip")}</p>
             <input
               type="text"
               value={templateSubject}
