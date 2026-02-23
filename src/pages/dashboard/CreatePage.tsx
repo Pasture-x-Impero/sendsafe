@@ -7,6 +7,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 import type { Email } from "@/types/database";
+import { toast } from "sonner";
 
 const tones = ["professional", "friendly", "direct"] as const;
 const toneKeys = {
@@ -117,17 +118,21 @@ const CreatePage = () => {
     templateBody.trim().length > 0;
 
   const handleGenerate = async () => {
-    const emails = await generateEmails.mutateAsync({
-      contactIds: Array.from(selectedIds),
-      mode: "hybrid",
-      campaignName: campaignName.trim(),
-      tone,
-      goal: profile?.goal || "sales",
-      templateSubject,
-      templateBody,
-    });
-    setGeneratedEmails(emails ?? []);
-    setStep(2);
+    try {
+      const emails = await generateEmails.mutateAsync({
+        contactIds: Array.from(selectedIds),
+        mode: "hybrid",
+        campaignName: campaignName.trim(),
+        tone,
+        goal: profile?.goal || "sales",
+        templateSubject,
+        templateBody,
+      });
+      setGeneratedEmails(emails ?? []);
+      setStep(2);
+    } catch (e) {
+      toast.error((e as Error).message ?? "Noe gikk galt. Prøv igjen.");
+    }
   };
 
   const systemPromptText = [
