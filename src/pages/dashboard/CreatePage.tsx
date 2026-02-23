@@ -382,7 +382,9 @@ const CreatePage = () => {
 
           {/* Subject */}
           <div className="mb-4">
-            <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateSubject")}</label>
+            <label className="mb-1.5 block text-sm font-semibold text-foreground">
+              {t("create.templateSubject")} <span className="text-destructive">*</span>
+            </label>
             <input
               type="text"
               value={templateSubject}
