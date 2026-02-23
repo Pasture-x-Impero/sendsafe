@@ -63,7 +63,7 @@ const CreatePage = () => {
   };
   // Standard mode
   const [templateSubject, setTemplateSubject] = useState("");
-  const [templateBody, setTemplateBody] = useState("");
+  const [templateBody, setTemplateBody] = useState("Hei,\n\n");
 
   const uniqueIndustries = useMemo(() => {
     const industries = leads.map((l) => l.industry).filter((ind): ind is string => !!ind);
@@ -395,13 +395,26 @@ const CreatePage = () => {
           {/* Body */}
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateBody")}</label>
+            <p className="mb-2 text-xs text-muted-foreground">{t("create.hybridBodyTip")}</p>
             <textarea
               value={templateBody}
               onChange={(e) => setTemplateBody(e.target.value)}
               rows={10}
-              placeholder={t("create.hybridBodyPlaceholder")}
-              className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-b-none rounded-t-lg border border-b-0 border-border bg-accent/30 px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
+            {profile?.email_signature ? (
+              <div className="rounded-b-lg border border-border bg-accent/10 px-4 py-3">
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t("create.signatureLabel")}</p>
+                <div
+                  className="text-sm text-muted-foreground [&_*]:max-w-full"
+                  dangerouslySetInnerHTML={{ __html: profile.email_signature }}
+                />
+              </div>
+            ) : (
+              <div className="rounded-b-lg border border-border bg-accent/10 px-4 py-2">
+                <p className="text-xs text-muted-foreground">{t("create.signatureLabel")}</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex items-center justify-between">
@@ -446,6 +459,15 @@ const CreatePage = () => {
                   {t("review.body")}
                 </p>
                 <p className="whitespace-pre-line text-sm text-foreground line-clamp-4">{email.body}</p>
+                {profile?.email_signature && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">{t("create.signatureLabel")}</p>
+                    <div
+                      className="text-sm text-muted-foreground [&_*]:max-w-full"
+                      dangerouslySetInnerHTML={{ __html: profile.email_signature }}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
