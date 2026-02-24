@@ -46,6 +46,7 @@ const ContactsPage = () => {
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [importStats, setImportStats] = useState<{ imported: number; skipped: number } | null>(null);
+  const [pendingRows, setPendingRows] = useState<{ domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupsRaw: string | null }[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Unique industries for filter
@@ -155,17 +156,31 @@ const ContactsPage = () => {
     return { groups: parseGroups(raw), comment: null };
   };
 
-  // Ensure groups exist and add contact to them
-  const assignGroups = async (contactId: string, groupNames: string[]) => {
-    for (const name of groupNames) {
-      let group = groups.find((g) => g.name.toLowerCase() === name.toLowerCase());
-      if (!group) {
-        const created = await createGroup.mutateAsync(name);
-        group = created;
+  // Confirm and run the pending file import
+  const confirmImport = async () => {
+    if (!pendingRows) return;
+    try {
+      const toImport = pendingRows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, status: "imported" as const }));
+      const result = await importLeads.mutateAsync(toImport);
+      // Build a local group cache seeded from current groups to avoid duplicates
+      const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
+      for (let i = 0; i < result.length; i++) {
+        const groupNames = parseGroups(pendingRows[i].groupsRaw);
+        for (const name of groupNames) {
+          const key = name.toLowerCase();
+          let group = groupCache.get(key);
+          if (!group) {
+            const created = await createGroup.mutateAsync(name);
+            groupCache.set(key, created);
+            group = created;
+          }
+          if (group) await addToGroup.mutateAsync({ contactIds: [result[i].id], groupId: group.id });
+        }
       }
-      if (group) {
-        await addToGroup.mutateAsync({ contactIds: [contactId], groupId: group.id });
-      }
+      setImportStats({ imported: result.length, skipped: pendingRows.length - result.length });
+      setPendingRows(null);
+    } catch {
+      toast.error("Failed to import contacts");
     }
   };
 
@@ -245,15 +260,10 @@ const ContactsPage = () => {
       } else { toast.error("Unsupported file type. Use .csv, .xlsx, or .xls"); return; }
 
       if (rows.length === 0) { toast.error("No valid contacts found in file"); return; }
-      const toImport = rows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, status: "imported" as const }));
-      const result = await importLeads.mutateAsync(toImport);
-      setImportStats({ imported: result.length, skipped: rows.length - result.length });
-      for (let i = 0; i < result.length; i++) {
-        const groupNames = parseGroups(rows[i].groupsRaw);
-        if (groupNames.length > 0) await assignGroups(result[i].id, groupNames);
-      }
-    } catch (err: unknown) { console.error("File upload error:", err); toast.error("Failed to import contacts"); }
-  }, [importLeads, groups, createGroup, addToGroup]);
+      setPendingRows(rows);
+      setImportStats(null);
+    } catch (err: unknown) { console.error("File upload error:", err); toast.error("Failed to read file"); }
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) parseFile(file); }, [parseFile]);
 
@@ -271,8 +281,18 @@ const ContactsPage = () => {
     const toImport = parsed.map(({ groupNames, ...rest }) => rest);
     try {
       const result = await importLeads.mutateAsync(toImport);
+      const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
       for (let i = 0; i < result.length; i++) {
-        if (parsed[i].groupNames.length > 0) await assignGroups(result[i].id, parsed[i].groupNames);
+        for (const name of parsed[i].groupNames) {
+          const key = name.toLowerCase();
+          let group = groupCache.get(key);
+          if (!group) {
+            const created = await createGroup.mutateAsync(name);
+            groupCache.set(key, created);
+            group = created;
+          }
+          if (group) await addToGroup.mutateAsync({ contactIds: [result[i].id], groupId: group.id });
+        }
       }
       setManualInput(""); setImportStats({ imported: result.length, skipped: 0 });
     } catch { toast.error("Failed to add contacts"); }
@@ -330,18 +350,63 @@ const ContactsPage = () => {
 
         {tab === "file" ? (
           <div>
-            <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
-              <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
-              <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) parseFile(file); }} />
-              <div className="mt-4 flex gap-3">
-                <button onClick={downloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
-                  <Download className="h-4 w-4" />{t("contacts.downloadTemplate")}
-                </button>
-                <button onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">{t("contacts.browse")}</button>
+            {pendingRows ? (
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{t("contacts.previewTitle")}</p>
+                    <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{pendingRows.length}</span> {t("contacts.previewDesc")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setPendingRows(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">{t("contacts.cancelImport")}</button>
+                    <button onClick={confirmImport} disabled={importLeads.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{importLeads.isPending ? "…" : `${t("contacts.confirmImport")} ${pendingRows.length}`}</button>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-accent/80">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.company")}</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.email")}</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRows.map((row, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-2 font-medium text-foreground">{row.company || "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.contact_email}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.contact_name || "—"}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="flex flex-wrap gap-1">
+                              {parseGroups(row.groupsRaw).map((g) => (
+                                <span key={g} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g}</span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
+                <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
+                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) parseFile(file); e.target.value = ""; }} />
+                <div className="mt-4 flex gap-3">
+                  <button onClick={downloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+                    <Download className="h-4 w-4" />{t("contacts.downloadTemplate")}
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">{t("contacts.browse")}</button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div>
