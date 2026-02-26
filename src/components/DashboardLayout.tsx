@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Shield, Users, PenSquare, ShieldCheck, Send, Settings, LogOut } from "lucide-react";
+import { Shield, Users, PenSquare, ShieldCheck, Send, Settings, CreditCard, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { NorwayFlag, UKFlag } from "@/components/Flags";
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/dashboard/create", labelKey: "sidebar.create" as TranslationKey, icon: PenSquare },
   { to: "/dashboard/review", labelKey: "sidebar.review" as TranslationKey, icon: ShieldCheck },
   { to: "/dashboard/sent", labelKey: "sidebar.sent" as TranslationKey, icon: Send },
+  { to: "/dashboard/billing", labelKey: "sidebar.billing" as TranslationKey, icon: CreditCard },
   { to: "/dashboard/settings", labelKey: "sidebar.settings" as TranslationKey, icon: Settings },
 ];
 

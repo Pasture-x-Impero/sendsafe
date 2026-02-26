@@ -15,6 +15,7 @@ import CreatePage from "./pages/dashboard/CreatePage";
 import ReviewPage from "./pages/dashboard/ReviewPage";
 import SentPage from "./pages/dashboard/SentPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
+import BillingPage from "./pages/dashboard/BillingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="review" element={<ReviewPage />} />
               <Route path="sent" element={<SentPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="billing" element={<BillingPage />} />
               {/* Redirects for old paths */}
               <Route path="leads" element={<Navigate to="/dashboard/contacts" replace />} />
               <Route path="drafts" element={<Navigate to="/dashboard/review" replace />} />
