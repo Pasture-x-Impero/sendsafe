@@ -29,13 +29,25 @@ export function useCreateContactGroup() {
   return useMutation({
     mutationFn: async (name: string) => {
       if (!user) throw new Error("Not authenticated");
-      const { data, error } = await supabase
+      // Try insert; if a group with this name already exists (unique index), return the existing one
+      const { data: inserted, error } = await supabase
         .from("contact_groups")
         .insert({ name, user_id: user.id })
         .select()
         .single();
-      if (error) throw error;
-      return data as ContactGroup;
+      if (!error) return inserted as ContactGroup;
+      // Unique constraint violation — fetch the existing group
+      if (error.code === "23505") {
+        const { data: existing, error: fetchError } = await supabase
+          .from("contact_groups")
+          .select("*")
+          .eq("user_id", user.id)
+          .ilike("name", name)
+          .single();
+        if (fetchError) throw fetchError;
+        return existing as ContactGroup;
+      }
+      throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contact-groups"] });
