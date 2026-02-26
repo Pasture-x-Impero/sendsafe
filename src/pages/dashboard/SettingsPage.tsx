@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import DOMPurify from "dompurify";
 
 const SIGNATURE_PURIFY_CONFIG = {
-  ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor", "width", "height", "style"],
+  ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor", "width", "height", "style", "href", "src"],
   ADD_DATA_URI_TAGS: ["img"] as string[],
   ALLOW_UNKNOWN_PROTOCOLS: true,
 };
@@ -102,17 +102,19 @@ const SettingsPage = () => {
   }, []);
 
   const handleSignaturePaste = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
-    // Let the browser handle the paste natively — it handles images
-    // (blob URLs, data URIs, etc.) much better than manual processing.
-    // After a tick, clean up Outlook junk from the result.
-    setTimeout(() => {
+    // Prefer raw clipboard HTML so that Outlook conditional comments
+    // (<!--[if !mso]>, <!--[if !vml]-->, etc.) are present for cleanOutlookHtml
+    // to process correctly. Data-URI images are preserved by DOMPurify config.
+    const clipboardHtml = e.clipboardData?.getData("text/html");
+    if (clipboardHtml) {
+      e.preventDefault();
+      const cleaned = cleanOutlookHtml(clipboardHtml);
       if (signatureRef.current) {
-        const raw = signatureRef.current.innerHTML;
-        const cleaned = cleanOutlookHtml(raw);
         signatureRef.current.innerHTML = cleaned;
         setSignatureHtml(cleaned);
       }
-    }, 0);
+    }
+    // No HTML on clipboard — let browser handle plain-text paste natively
   }, [cleanOutlookHtml]);
 
   const addDomain = useAddSenderDomain();
