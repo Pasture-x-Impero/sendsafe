@@ -225,9 +225,9 @@ const ContactsPage = () => {
   const downloadTemplate = useCallback(async () => {
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Selskap", "E-post", "Navn", "Bransje", "Gruppe", "Domene", "Kommentar"],
-      ["Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "Kunde", "acme.no", "Møtt på konferanse"],
-      ["Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "Lead", "globex.no", "Følg opp Q2"],
+      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar"],
+      ["Acme AS", "ola@acme.no", "Ola Nordmann", "acme.no", "Kunde", "Teknologi", "Møtt på konferanse"],
+      ["Globex AS", "kari@globex.no", "Kari Hansen", "globex.no", "Lead", "Finans", "Følg opp Q2"],
     ]);
     ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }];
     const wb = XLSX.utils.book_new();
@@ -240,10 +240,10 @@ const ContactsPage = () => {
     const rows = sortedLeads.map((lead) => {
       const contactGroups = getGroupsForContact(lead.id);
       const groupStr = contactGroups.map((g) => g.name).join(", ");
-      return [lead.company, lead.contact_email, lead.contact_name || "", lead.industry || "", groupStr, lead.domain || "", lead.comment || ""];
+      return [lead.company, lead.contact_email, lead.contact_name || "", lead.domain || "", groupStr, lead.industry || "", lead.comment || ""];
     });
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Selskap", "E-post", "Navn", "Bransje", "Gruppe", "Domene", "Kommentar"],
+      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar"],
       ...rows,
     ]);
     ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
@@ -392,8 +392,10 @@ const ContactsPage = () => {
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.company")}</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.email")}</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.domain")}</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.comment")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -402,7 +404,7 @@ const ContactsPage = () => {
                       <td className="px-3 py-2 font-medium text-foreground">{row.company || "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{row.contact_email}</td>
                       <td className="px-3 py-2 text-muted-foreground">{row.contact_name || "—"}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.domain || "—"}</td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1">
                           {row.groupNames.map((g) => (
@@ -410,6 +412,8 @@ const ContactsPage = () => {
                           ))}
                         </div>
                       </td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.comment || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -589,9 +593,6 @@ const ContactsPage = () => {
                 <th className="w-10 px-4 py-3">
                   <input type="checkbox" checked={selectedIds.size === sortedLeads.length && sortedLeads.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded border-border accent-primary" />
                 </th>
-                <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
-                  {t("contacts.col.domain")}<SortIcon field="domain" />
-                </th>
                 <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
                   {t("contacts.col.company")}<SortIcon field="company" />
                 </th>
@@ -601,10 +602,13 @@ const ContactsPage = () => {
                 <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_name")}>
                   {t("contacts.col.name")}<SortIcon field="contact_name" />
                 </th>
+                <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
+                  {t("contacts.col.domain")}<SortIcon field="domain" />
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
                 <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
                   {t("contacts.col.industry")}<SortIcon field="industry" />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.comment")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
@@ -617,28 +621,29 @@ const ContactsPage = () => {
                   </td>
                   {isEditing(lead.id) ? (
                     <>
-                      <td className="px-4 py-2"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
-                      <td className="px-4 py-2"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-4 py-2"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
                       <td className="px-4 py-2"><input value={editValues.contact_email} onChange={(e) => setEditValues((v) => ({ ...v, contact_email: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                       <td className="px-4 py-2"><input value={editValues.contact_name} onChange={(e) => setEditValues((v) => ({ ...v, contact_name: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-4 py-2"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-4 py-2">{/* groups not editable inline */}</td>
                       <td className="px-4 py-2"><input value={editValues.industry} onChange={(e) => setEditValues((v) => ({ ...v, industry: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                     </>
                   ) : (
                     <>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{lead.domain || "—"}</td>
                       <td className="px-4 py-3 text-sm"><span className="font-medium text-foreground">{lead.company}</span></td>
                       <td className="px-4 py-3 text-sm text-foreground">{lead.contact_email}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{lead.contact_name || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{lead.domain || "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {getGroupsForContact(lead.id).map((g) => (
+                            <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{lead.industry || "—"}</td>
                     </>
                   )}
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {getGroupsForContact(lead.id).map((g) => (
-                        <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
-                      ))}
-                    </div>
-                  </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
                     {isEditing(lead.id) ? (
                       <input value={editValues.comment} onChange={(e) => setEditValues((v) => ({ ...v, comment: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" />
