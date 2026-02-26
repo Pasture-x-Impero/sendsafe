@@ -9,6 +9,7 @@ export interface Profile {
   smtp_sender_email: string | null;
   smtp_sender_name: string | null;
   email_signature: string | null;
+  font_family: string;
   created_at: string;
   updated_at: string;
 }

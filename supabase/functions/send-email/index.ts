@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Fetch user's sender settings from profile
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("smtp_sender_email, smtp_sender_name, email_signature, plan")
+      .select("smtp_sender_email, smtp_sender_name, email_signature, font_family, plan")
       .eq("id", user.id)
       .single();
 
@@ -118,15 +118,18 @@ Deno.serve(async (req) => {
     const recipient = test_email || email.contact_email;
 
     // Build email body, appending signature if present
-    let htmlBody = email.body.replace(/\n/g, "<br>");
+    const fontFamily = profile.font_family || "Arial";
+    const bodyContent = email.body.replace(/\n/g, "<br>");
+    let signatureHtml = "";
     let textBody = email.body;
 
     if (profile.email_signature) {
-      htmlBody += "<br><br><hr>" + profile.email_signature;
-      // Strip HTML tags for plain-text version of signature
+      signatureHtml = "<br><br><hr>" + profile.email_signature;
       const textSignature = profile.email_signature.replace(/<[^>]*>/g, "");
       textBody += "\n\n---\n" + textSignature;
     }
+
+    let htmlBody = `<div style="font-family:${fontFamily},sans-serif;">${bodyContent}${signatureHtml}</div>`;
 
     // Free plan: append SendSafe promo line
     if (isFree) {

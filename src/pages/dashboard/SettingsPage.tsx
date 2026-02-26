@@ -15,6 +15,7 @@ const SIGNATURE_PURIFY_CONFIG = {
 
 const tones = ["professional", "friendly", "direct"] as const;
 const goals = ["sales", "partnerships", "recruiting", "other"] as const;
+const FONT_OPTIONS = ["Arial", "Calibri", "Helvetica", "Georgia", "Verdana"] as const;
 
 const toneKeys = {
   professional: "onboarding.tone.professional",
@@ -42,6 +43,7 @@ const SettingsPage = () => {
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [fontFamily, setFontFamily] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState<string | null>(null);
   const signatureRef = useRef<HTMLDivElement>(null);
   const signatureInitialized = useRef(false);
@@ -51,6 +53,7 @@ const SettingsPage = () => {
   const currentLocalPart = senderLocalPart ?? profileLocalPart;
   const senderName = smtpSenderName ?? profile?.smtp_sender_name ?? "";
   const currentSignature = signatureHtml ?? profile?.email_signature ?? "";
+  const currentFont = fontFamily ?? profile?.font_family ?? "Arial";
 
   // Set contentEditable innerHTML from profile on first load (avoids cursor-jump)
   useEffect(() => {
@@ -91,8 +94,6 @@ const SettingsPage = () => {
     clean = clean.replace(/class="Mso[^"]*"/gi, "");
     // Remove empty style attributes
     clean = clean.replace(/\s*style="\s*"/gi, "");
-    // Remove font-family declarations (often Calibri/Times New Roman from Office)
-    clean = clean.replace(/font-family:[^;}"']+;?/gi, "");
     // Remove empty spans
     clean = clean.replace(/<span[^>]*>\s*<\/span>/gi, "");
     return DOMPurify.sanitize(clean, SIGNATURE_PURIFY_CONFIG);
@@ -148,6 +149,7 @@ const SettingsPage = () => {
         smtp_sender_email: fullEmail,
         smtp_sender_name: senderName || null,
         email_signature: sanitizedSignature || null,
+        font_family: currentFont,
       });
 
       toast.success(t("settings.smtp.saved"));
@@ -400,6 +402,20 @@ const SettingsPage = () => {
             </div>
 
             <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.font.label")}</label>
+              <p className="mb-2 text-xs text-muted-foreground">{t("settings.font.desc")}</p>
+              <select
+                value={currentFont}
+                onChange={(e) => setFontFamily(e.target.value)}
+                className="w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.signature.label")}</label>
               <p className="mb-2 text-xs text-muted-foreground">{t("settings.signature.desc")}</p>
               <div
@@ -461,7 +477,7 @@ const SettingsPage = () => {
         <div className="rounded-xl border border-border bg-card p-6">
           <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
-          <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4">
+          <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4" style={{ fontFamily: currentFont }}>
             <p className="whitespace-pre-line text-sm text-foreground">
               {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
             </p>
