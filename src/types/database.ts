@@ -64,6 +64,16 @@ export interface ContactGroupMembership {
   created_at: string;
 }
 
+export interface EmailTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  subject: string;
+  body: string;
+  language: string;
+  created_at: string;
+}
+
 export interface DomainTracker {
   subdomain: string;
   verification_status: string;

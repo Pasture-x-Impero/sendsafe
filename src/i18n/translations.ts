@@ -256,6 +256,15 @@ export const translations = {
     "create.campaignNamePlaceholder": "e.g. Q1 outreach, Partner intro…",
     "create.templateSubject": "Email subject",
     "create.templateBody": "Email body",
+    "create.tpl.title": "Templates",
+    "create.tpl.none": "No saved templates",
+    "create.tpl.save": "Save as template",
+    "create.tpl.saving": "Saving…",
+    "create.tpl.namePlaceholder": "Template name…",
+    "create.tpl.confirm": "Save",
+    "create.tpl.saved": "Template saved",
+    "create.tpl.loaded": "Template loaded",
+    "create.tpl.deleted": "Template deleted",
 
     // Review page
     "review.title": "Review",
@@ -660,6 +669,15 @@ export const translations = {
     "create.campaignNamePlaceholder": "f.eks. Q1-oppsøking, Partnerintro…",
     "create.templateSubject": "E-postemne",
     "create.templateBody": "E-postinnhold",
+    "create.tpl.title": "Maler",
+    "create.tpl.none": "Ingen lagrede maler",
+    "create.tpl.save": "Lagre som mal",
+    "create.tpl.saving": "Lagrer…",
+    "create.tpl.namePlaceholder": "Malnavn…",
+    "create.tpl.confirm": "Lagre",
+    "create.tpl.saved": "Mal lagret",
+    "create.tpl.loaded": "Mal lastet inn",
+    "create.tpl.deleted": "Mal slettet",
 
     // Review page
     "review.title": "Gjennomgang",
