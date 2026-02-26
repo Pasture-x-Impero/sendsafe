@@ -236,6 +236,27 @@ const SettingsPage = () => {
       </div>
 
       <div className="max-w-2xl space-y-8">
+        {/* Goal */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.goal.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t("settings.goal.desc")}</p>
+          <div className="mt-4 flex gap-3">
+            {goals.map((goal) => (
+              <button
+                key={goal}
+                onClick={() => updateProfile.mutate({ goal })}
+                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                  currentGoal === goal
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border bg-accent text-foreground hover:border-primary/30"
+                }`}
+              >
+                {t(goalKeys[goal])}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Plans & Usage */}
         <div className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center justify-between">
@@ -344,27 +365,6 @@ const SettingsPage = () => {
                 </div>
               );
             })}
-          </div>
-        </div>
-
-        {/* Goal */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.goal.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.goal.desc")}</p>
-          <div className="mt-4 flex gap-3">
-            {goals.map((goal) => (
-              <button
-                key={goal}
-                onClick={() => updateProfile.mutate({ goal })}
-                className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                  currentGoal === goal
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border bg-accent text-foreground hover:border-primary/30"
-                }`}
-              >
-                {t(goalKeys[goal])}
-              </button>
-            ))}
           </div>
         </div>
 
