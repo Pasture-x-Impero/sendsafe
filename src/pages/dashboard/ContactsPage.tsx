@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Sparkles } from "lucide-react";
+import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Wand2 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
 import {
@@ -9,7 +9,6 @@ import {
   useGroupMemberships,
   useAddToGroup,
 } from "@/hooks/use-contact-groups";
-import { useEnrichContacts } from "@/hooks/use-enrich-contacts";
 import { toast } from "sonner";
 import type { Lead } from "@/types/database";
 
@@ -30,7 +29,6 @@ const ContactsPage = () => {
   const deleteGroup = useDeleteContactGroup();
   const { data: memberships = [] } = useGroupMemberships();
   const addToGroup = useAddToGroup();
-  const enrichContacts = useEnrichContacts();
 
   const [tab, setTab] = useState<"file" | "manual">("file");
   const [manualRows, setManualRows] = useState<ManualRow[]>([emptyManualRow()]);
@@ -136,6 +134,57 @@ const ContactsPage = () => {
     } else {
       setSelectedIds(new Set(sortedLeads.map((l) => l.id)));
     }
+  };
+
+  const isEmail = (v: string | null | undefined) => !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  const isDomain = (v: string | null | undefined) => !!v && /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(v.trim()) && !v!.includes("@") && !v!.includes(" ");
+
+  const fixColumns = async () => {
+    const ids = Array.from(selectedIds);
+    const toFix = leads.filter((l) => ids.includes(l.id));
+    let fixedCount = 0;
+
+    for (const lead of toFix) {
+      const updates: Record<string, string | null> = {};
+      let { domain, company, contact_email, contact_name, industry } = lead;
+
+      // Move email values found in non-email fields into contact_email
+      for (const [key, val] of [["domain", domain], ["company", company], ["contact_name", contact_name], ["industry", industry]] as [string, string | null][]) {
+        if (isEmail(val) && !isEmail(contact_email)) {
+          updates.contact_email = val!.trim();
+          updates[key] = null;
+          contact_email = val;
+          if (key === "domain") domain = null;
+          if (key === "company") company = null;
+          if (key === "contact_name") contact_name = null;
+          if (key === "industry") industry = null;
+        }
+      }
+
+      // Move domain values found in non-domain fields into domain
+      for (const [key, val] of [["company", company], ["contact_email", contact_email], ["contact_name", contact_name]] as [string, string | null][]) {
+        if (isDomain(val) && !domain) {
+          updates.domain = val!.trim();
+          updates[key] = null;
+          domain = val;
+          if (key === "company") company = null;
+          if (key === "contact_email") contact_email = null;
+          if (key === "contact_name") contact_name = null;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await updateLead.mutateAsync({ id: lead.id, ...updates });
+        fixedCount++;
+      }
+    }
+
+    if (fixedCount > 0) {
+      toast.success(`${fixedCount} ${t("contacts.fixDone")}`);
+    } else {
+      toast.info(t("contacts.fixNone"));
+    }
+    setSelectedIds(new Set());
   };
 
   // Parse groups string like "(Kunde;Lead)" → ["Kunde", "Lead"]
@@ -504,22 +553,12 @@ const ContactsPage = () => {
               <Users className="h-3.5 w-3.5" /> {t("contacts.addToGroup")}
             </button>
             <button
-              onClick={() => {
-                const ids = Array.from(selectedIds);
-                enrichContacts.mutate(ids, {
-                  onSuccess: (data) => {
-                    const ok = data.results.filter((r) => r.success).length;
-                    toast.success(`${ok} ${t("contacts.enrichDone")}`);
-                    setSelectedIds(new Set());
-                  },
-                  onError: (err) => toast.error(err.message),
-                });
-              }}
-              disabled={enrichContacts.isPending}
+              onClick={fixColumns}
+              disabled={updateLead.isPending}
               className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-40"
-              title={t("contacts.enrichDesc")}
+              title={t("contacts.fixDesc")}
             >
-              <Sparkles className="h-3.5 w-3.5" /> {enrichContacts.isPending ? t("contacts.enriching") : t("contacts.enrich")}
+              <Wand2 className="h-3.5 w-3.5" /> {updateLead.isPending ? t("contacts.fixing") : t("contacts.fix")}
             </button>
           </>
         )}
