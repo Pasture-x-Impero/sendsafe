@@ -15,6 +15,9 @@ import type { Lead } from "@/types/database";
 
 type SortField = "domain" | "company" | "contact_email" | "contact_name" | "industry";
 type SortDir = "asc" | "desc";
+type PendingRow = { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupNames: string[] };
+type ManualRow = { company: string; contact_email: string; contact_name: string; industry: string; groupId: string };
+const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", industry: "", groupId: "" });
 
 const ContactsPage = () => {
   const { t } = useLanguage();
@@ -30,7 +33,7 @@ const ContactsPage = () => {
   const enrichContacts = useEnrichContacts();
 
   const [tab, setTab] = useState<"file" | "manual">("file");
-  const [manualInput, setManualInput] = useState("");
+  const [manualRows, setManualRows] = useState<ManualRow[]>([emptyManualRow()]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
   const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
@@ -46,7 +49,7 @@ const ContactsPage = () => {
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [importStats, setImportStats] = useState<{ imported: number; skipped: number } | null>(null);
-  const [pendingRows, setPendingRows] = useState<{ domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupsRaw: string | null }[] | null>(null);
+  const [pendingRows, setPendingRows] = useState<PendingRow[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Unique industries for filter
@@ -165,8 +168,7 @@ const ContactsPage = () => {
       // Build a local group cache seeded from current groups to avoid duplicates
       const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
       for (let i = 0; i < result.length; i++) {
-        const groupNames = parseGroups(pendingRows[i].groupsRaw);
-        for (const name of groupNames) {
+        for (const name of pendingRows[i].groupNames) {
           const key = name.toLowerCase();
           let group = groupCache.get(key);
           if (!group) {
@@ -179,6 +181,7 @@ const ContactsPage = () => {
       }
       setImportStats({ imported: result.length, skipped: pendingRows.length - result.length });
       setPendingRows(null);
+      if (tab === "manual") setManualRows([emptyManualRow()]);
     } catch {
       toast.error("Failed to import contacts");
     }
@@ -217,7 +220,7 @@ const ContactsPage = () => {
   const parseFile = useCallback(async (file: File) => {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase();
-      let rows: { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupsRaw: string | null }[] = [];
+      let rows: PendingRow[] = [];
 
       if (ext === "csv") {
         const text = await file.text();
@@ -235,7 +238,8 @@ const ContactsPage = () => {
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(",").map((c) => c.trim());
           if (cols[emailIdx]) {
-            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, groupsRaw: groupsIdx !== -1 ? cols[groupsIdx] || null : null });
+            const raw = groupsIdx !== -1 ? cols[groupsIdx] || null : null;
+            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, groupNames: parseGroups(raw) });
           }
         }
       } else if (ext === "xlsx" || ext === "xls") {
@@ -254,7 +258,8 @@ const ContactsPage = () => {
           const groupsKey = keys.find((k) => /group|gruppe/i.test(k));
           const commentKey = keys.find((k) => /comment|kommentar|notat/i.test(k));
           if (companyKey && emailKey && row[emailKey]) {
-            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, groupsRaw: groupsKey ? row[groupsKey] || null : null });
+            const raw = groupsKey ? row[groupsKey] || null : null;
+            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, groupNames: parseGroups(raw) });
           }
         }
       } else { toast.error("Unsupported file type. Use .csv, .xlsx, or .xls"); return; }
@@ -267,35 +272,19 @@ const ContactsPage = () => {
 
   const handleDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); const file = e.dataTransfer.files[0]; if (file) parseFile(file); }, [parseFile]);
 
-  const handleManualAdd = async () => {
-    const lines = manualInput.split("\n").map((l) => l.trim()).filter(Boolean);
-    const parsed = lines.map((line) => {
-      // Extract {(groups), "comment"} block first
-      const braceMatch = line.match(/\{([^}]*)\}/);
-      const lineWithoutBrace = braceMatch ? line.replace(braceMatch[0], "").replace(/,\s*$/, "") : line;
-      const parts = lineWithoutBrace.split(",").map((p) => p.trim()).filter(Boolean);
-      const gc = parseGroupsAndComment(braceMatch ? braceMatch[0] : null);
-      return { domain: parts[0] || null, company: parts[1] || "", contact_email: parts[2] || "", contact_name: parts[3] || null, industry: parts[4] || null, comment: gc.comment, groupNames: gc.groups, status: "imported" as const };
-    }).filter((c) => c.contact_email);
-    if (parsed.length === 0) return;
-    const toImport = parsed.map(({ groupNames, ...rest }) => rest);
-    try {
-      const result = await importLeads.mutateAsync(toImport);
-      const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
-      for (let i = 0; i < result.length; i++) {
-        for (const name of parsed[i].groupNames) {
-          const key = name.toLowerCase();
-          let group = groupCache.get(key);
-          if (!group) {
-            const created = await createGroup.mutateAsync(name);
-            groupCache.set(key, created);
-            group = created;
-          }
-          if (group) await addToGroup.mutateAsync({ contactIds: [result[i].id], groupId: group.id });
-        }
-      }
-      setManualInput(""); setImportStats({ imported: result.length, skipped: 0 });
-    } catch { toast.error("Failed to add contacts"); }
+  const updateManualRow = (i: number, field: keyof ManualRow, value: string) => {
+    setManualRows((rows) => rows.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+  };
+
+  const previewManual = () => {
+    const valid = manualRows.filter((r) => r.company.trim() && r.contact_email.trim());
+    if (valid.length === 0) return;
+    const rows: PendingRow[] = valid.map((r) => {
+      const group = groups.find((g) => g.id === r.groupId);
+      return { domain: null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, groupNames: group ? [group.name] : [] };
+    });
+    setPendingRows(rows);
+    setImportStats(null);
   };
 
   // Inline edit helpers
@@ -348,74 +337,96 @@ const ContactsPage = () => {
           <button onClick={() => setTab("manual")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${tab === "manual" ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/80"}`}>{t("contacts.tabManual")}</button>
         </div>
 
-        {tab === "file" ? (
+        {/* Shared preview for both file and manual tabs */}
+        {pendingRows && (
           <div>
-            {pendingRows ? (
+            <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{t("contacts.previewTitle")}</p>
-                    <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{pendingRows.length}</span> {t("contacts.previewDesc")}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setPendingRows(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">{t("contacts.cancelImport")}</button>
-                    <button onClick={confirmImport} disabled={importLeads.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{importLeads.isPending ? "…" : `${t("contacts.confirmImport")} ${pendingRows.length}`}</button>
-                  </div>
-                </div>
-                <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-accent/80">
-                      <tr>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.company")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.email")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
-                        <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pendingRows.map((row, i) => (
-                        <tr key={i} className="border-t border-border">
-                          <td className="px-3 py-2 font-medium text-foreground">{row.company || "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{row.contact_email}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{row.contact_name || "—"}</td>
-                          <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex flex-wrap gap-1">
-                              {parseGroups(row.groupsRaw).map((g) => (
-                                <span key={g} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g}</span>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="text-sm font-semibold text-foreground">{t("contacts.previewTitle")}</p>
+                <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{pendingRows.length}</span> {t("contacts.previewDesc")}</p>
               </div>
-            ) : (
-              <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
-                <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
-                <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
-                <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) parseFile(file); e.target.value = ""; }} />
-                <div className="mt-4 flex gap-3">
-                  <button onClick={downloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
-                    <Download className="h-4 w-4" />{t("contacts.downloadTemplate")}
-                  </button>
-                  <button onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">{t("contacts.browse")}</button>
-                </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setPendingRows(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">{t("contacts.cancelImport")}</button>
+                <button onClick={confirmImport} disabled={importLeads.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{importLeads.isPending ? "…" : `${t("contacts.confirmImport")} ${pendingRows.length}`}</button>
               </div>
-            )}
-          </div>
-        ) : (
-          <div>
-            <div className="mb-3 rounded-lg border border-border bg-accent/20 px-4 py-3">
-              <p className="mb-1 text-xs font-medium text-muted-foreground">{t("contacts.manualFormat")}</p>
-              <code className="text-xs text-foreground">{t("contacts.manualExample")}</code>
             </div>
-            <textarea value={manualInput} onChange={(e) => setManualInput(e.target.value)} rows={6} placeholder={t("contacts.manualPlaceholder")} className="w-full rounded-lg border border-border bg-accent/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
-            <button onClick={handleManualAdd} disabled={!manualInput.trim() || importLeads.isPending} className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{t("contacts.addContacts")}</button>
+            <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-accent/80">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.company")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.email")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.name")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRows.map((row, i) => (
+                    <tr key={i} className="border-t border-border">
+                      <td className="px-3 py-2 font-medium text-foreground">{row.company || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.contact_email}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.contact_name || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1">
+                          {row.groupNames.map((g) => (
+                            <span key={g} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g}</span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {tab === "file" && !pendingRows && (
+          <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
+            <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t("contacts.requiredColumns")}</p>
+            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) parseFile(file); e.target.value = ""; }} />
+            <div className="mt-4 flex gap-3">
+              <button onClick={downloadTemplate} className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+                <Download className="h-4 w-4" />{t("contacts.downloadTemplate")}
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">{t("contacts.browse")}</button>
+            </div>
+          </div>
+        )}
+
+        {tab === "manual" && (
+          <div>
+            {pendingRows ? null : (
+              <>
+                <div className="space-y-2">
+                  {manualRows.map((row, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2">
+                      <input value={row.company} onChange={(e) => updateManualRow(i, "company", e.target.value)} placeholder={`${t("contacts.col.company")} *`} className="w-40 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input value={row.contact_email} onChange={(e) => updateManualRow(i, "contact_email", e.target.value)} placeholder={`${t("contacts.col.email")} *`} className="w-44 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input value={row.contact_name} onChange={(e) => updateManualRow(i, "contact_name", e.target.value)} placeholder={t("contacts.col.name")} className="w-36 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input value={row.industry} onChange={(e) => updateManualRow(i, "industry", e.target.value)} placeholder={t("contacts.col.industry")} className="w-32 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <select value={row.groupId} onChange={(e) => updateManualRow(i, "groupId", e.target.value)} className="w-36 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                        <option value="">{t("contacts.col.groups")}</option>
+                        {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                      </select>
+                      {manualRows.length > 1 && (
+                        <button onClick={() => setManualRows((rows) => rows.filter((_, idx) => idx !== i))} className="rounded p-1 text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-3">
+                  <button onClick={() => setManualRows((rows) => [...rows, emptyManualRow()])} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
+                    <Plus className="h-3.5 w-3.5" /> {t("contacts.addRow")}
+                  </button>
+                  <button onClick={previewManual} disabled={!manualRows.some((r) => r.company.trim() && r.contact_email.trim())} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{t("contacts.previewTitle")}</button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
