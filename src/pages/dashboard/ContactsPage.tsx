@@ -187,25 +187,11 @@ const ContactsPage = () => {
     setSelectedIds(new Set());
   };
 
-  // Parse groups string like "(Kunde;Lead)" → ["Kunde", "Lead"]
+  // Parse groups: plain "Kunde", comma/semicolon separated "Kunde, Lead", or legacy "(Kunde;Lead)"
   const parseGroups = (raw: string | undefined | null): string[] => {
     if (!raw) return [];
-    const match = raw.match(/\(([^)]+)\)/);
-    if (!match) return [];
-    return match[1].split(";").map((g) => g.trim()).filter(Boolean);
-  };
-
-  // Parse {(groups), "comment"} format → { groups, comment }
-  const parseGroupsAndComment = (raw: string | undefined | null): { groups: string[]; comment: string | null } => {
-    if (!raw) return { groups: [], comment: null };
-    const braceMatch = raw.match(/\{([^}]*)\}/);
-    if (braceMatch) {
-      const inner = braceMatch[1];
-      const groups = parseGroups(inner);
-      const commentMatch = inner.match(/"([^"]*)"/);
-      return { groups, comment: commentMatch ? commentMatch[1] : null };
-    }
-    return { groups: parseGroups(raw), comment: null };
+    const inner = raw.replace(/^\(|\)$/g, "").replace(/^\{.*\(([^)]+)\).*\}$/, "$1");
+    return inner.split(/[,;]/).map((g) => g.trim()).filter(Boolean);
   };
 
   // Confirm and run the pending file import
@@ -239,25 +225,25 @@ const ContactsPage = () => {
   const downloadTemplate = useCallback(async () => {
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([
-      [t("contacts.col.domain"), t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups"), t("contacts.col.comment")],
-      ["acme.no", "Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "(Kunde;Lead)", "Møtt på konferanse"],
-      ["globex.no", "Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "(Partner)", "Følg opp Q2"],
+      ["Selskap", "E-post", "Navn", "Bransje", "Gruppe", "Domene", "Kommentar"],
+      ["Acme AS", "ola@acme.no", "Ola Nordmann", "Teknologi", "Kunde", "acme.no", "Møtt på konferanse"],
+      ["Globex AS", "kari@globex.no", "Kari Hansen", "Finans", "Lead", "globex.no", "Følg opp Q2"],
     ]);
-    ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
+    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contacts");
     XLSX.writeFile(wb, "sendsafe_contacts_template.xlsx");
-  }, [t]);
+  }, []);
 
   const exportContacts = useCallback(async () => {
     const XLSX = await import("xlsx");
     const rows = sortedLeads.map((lead) => {
       const contactGroups = getGroupsForContact(lead.id);
-      const groupStr = contactGroups.length > 0 ? `(${contactGroups.map((g) => g.name).join(";")})` : "";
-      return [lead.domain || "", lead.company, lead.contact_email, lead.contact_name || "", lead.industry || "", groupStr, lead.comment || ""];
+      const groupStr = contactGroups.map((g) => g.name).join(", ");
+      return [lead.company, lead.contact_email, lead.contact_name || "", lead.industry || "", groupStr, lead.domain || "", lead.comment || ""];
     });
     const ws = XLSX.utils.aoa_to_sheet([
-      [t("contacts.col.domain"), t("contacts.col.company"), t("contacts.col.email"), t("contacts.col.name"), t("contacts.col.industry"), t("contacts.col.groups"), t("contacts.col.comment")],
+      ["Selskap", "E-post", "Navn", "Bransje", "Gruppe", "Domene", "Kommentar"],
       ...rows,
     ]);
     ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
