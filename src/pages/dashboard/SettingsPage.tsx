@@ -79,9 +79,11 @@ const SettingsPage = () => {
   // Clean up Outlook / Word HTML on paste
   const cleanOutlookHtml = useCallback((html: string) => {
     let clean = html;
-    // Unwrap <!--[if !vml]--> blocks — these contain HTML fallback images we want to keep
+    // Unwrap <!--[if !vml]--> blocks — HTML fallback images for non-VML clients
     clean = clean.replace(/<!--\[if !vml\]-->([\s\S]*?)<!--\[endif\]-->/gi, "$1");
-    // Remove remaining conditional comments (VML blocks, etc.) and their content
+    // Unwrap <!--[if !mso]><!--> blocks — layout HTML for browsers (not Outlook)
+    clean = clean.replace(/<!--\[if !mso\]><!-->([\s\S]*?)<!--<!\[endif\]-->/gi, "$1");
+    // Remove remaining conditional comments (VML/MSO-specific) and their content
     clean = clean.replace(/<!\[if[^>]*>[\s\S]*?<!\[endif\]>/gi, "");
     clean = clean.replace(/<!--\[if[^>]*>[\s\S]*?<!\[endif\]-->/gi, "");
     // Remove Office XML tags (<o:p>, <v:*, <w:*, etc.) but keep <img>
