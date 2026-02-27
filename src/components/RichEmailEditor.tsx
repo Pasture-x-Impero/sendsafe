@@ -168,7 +168,7 @@ const RichEmailEditor = ({
   );
 
   return (
-    <div className="rounded-t-lg border border-border overflow-hidden">
+    <div className="rounded-lg border border-border overflow-hidden">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1 border-b border-border bg-accent/30 px-2 py-1.5">
         {/* Font family */}
