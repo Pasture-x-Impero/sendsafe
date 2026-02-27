@@ -92,6 +92,16 @@ const SettingsPage = () => {
     clean = clean.replace(/<span[^>]*>\s*<\/span>/gi, "");
     // Remove visible table/cell borders from Outlook (border="1", border="2", etc.)
     clean = clean.replace(/(<(?:table|td|th|tr)[^>]*)\bborder=["']\d+["']/gi, "$1border=\"0\"");
+    // Convert deprecated valign attribute to inline CSS vertical-align so email
+    // clients (and browsers) honour it. Default to "top" when not specified.
+    clean = clean.replace(/(<(?:td|th)\b[^>]*)>/gi, (_, prefix) => {
+      if (/vertical-align\s*:/i.test(prefix)) return `${prefix}>`;
+      const m = prefix.match(/\bvalign="(\w+)"/i);
+      const val = m ? m[1] : "top";
+      if (/\bstyle="/i.test(prefix))
+        return prefix.replace(/\bstyle="([^"]*)"/i, (__, s) => `style="${s.replace(/;\s*$/, "")}; vertical-align: ${val}"`) + ">";
+      return `${prefix} style="vertical-align: ${val}">`;
+    });
     return DOMPurify.sanitize(clean, SIGNATURE_PURIFY_CONFIG);
   }, []);
 
@@ -470,7 +480,7 @@ const SettingsPage = () => {
               <>
                 <hr className="my-4 border-border" />
                 <div
-                  className="text-sm text-foreground"
+                  className="text-sm text-foreground overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full"
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
                 />
               </>
