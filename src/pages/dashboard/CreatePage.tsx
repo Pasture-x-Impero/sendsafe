@@ -221,7 +221,6 @@ const CreatePage = () => {
     setTemplateBody(body);
     setTemplateKey((k) => k + 1);
     setCampaignLanguage(tpl.language);
-    setStep(0);
     toast.success(t("create.tpl.loaded"));
   };
 
@@ -243,52 +242,6 @@ const CreatePage = () => {
       <div className="mb-8">
         <h1 className="font-heading text-2xl font-bold text-foreground">{t("create.title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("create.desc")}</p>
-      </div>
-
-      {/* Templates bar */}
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-foreground">{t("create.tpl.title")}</span>
-        {templates.length === 0 && !showTplSave && (
-          <span className="text-xs text-muted-foreground">{t("create.tpl.none")}</span>
-        )}
-        {templates.map((tpl) => (
-          <div key={tpl.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-3 py-1 text-xs font-medium text-foreground">
-            <button onClick={() => loadTemplate(tpl)}>{tpl.name}</button>
-            <button
-              onClick={() => {
-                deleteTemplate.mutate(tpl.id);
-                toast.success(t("create.tpl.deleted"));
-              }}
-              className="ml-1 text-muted-foreground hover:text-destructive"
-            >×</button>
-          </div>
-        ))}
-        {!showTplSave ? (
-          <button
-            onClick={() => setShowTplSave(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary"
-          >
-            + {t("create.tpl.save")}
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-2">
-            <input
-              value={tplNameInput}
-              onChange={(e) => setTplNameInput(e.target.value)}
-              placeholder={t("create.tpl.namePlaceholder")}
-              className="rounded-lg border border-border bg-accent/30 px-3 py-1 text-xs focus:border-primary focus:outline-none"
-              onKeyDown={(e) => e.key === "Escape" && setShowTplSave(false)}
-            />
-            <button
-              onClick={handleSaveTemplate}
-              disabled={savingTpl || !tplNameInput.trim() || (!templateSubject && !templateBody)}
-              className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {savingTpl ? t("create.tpl.saving") : t("create.tpl.confirm")}
-            </button>
-            <button onClick={() => setShowTplSave(false)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
-          </div>
-        )}
       </div>
 
       {/* Step indicator */}
@@ -569,6 +522,24 @@ const CreatePage = () => {
             </div>
           </div>
 
+          {/* Use template */}
+          {templates.length > 0 && (
+            <div className="mb-5">
+              <label className="mb-2 block text-sm font-semibold text-foreground">Bruk mal</label>
+              <div className="flex flex-wrap gap-2">
+                {templates.map((tpl) => (
+                  <div key={tpl.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-3 py-1 text-xs font-medium text-foreground">
+                    <button onClick={() => loadTemplate(tpl)}>{tpl.name}</button>
+                    <button
+                      onClick={() => { deleteTemplate.mutate(tpl.id); toast.success(t("create.tpl.deleted")); }}
+                      className="ml-1 text-muted-foreground hover:text-destructive"
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Subject */}
           <div className="mb-4">
             <label className="mb-1.5 block text-sm font-semibold text-foreground">
@@ -601,6 +572,37 @@ const CreatePage = () => {
                   className="text-sm text-muted-foreground [&_*]:max-w-full"
                   dangerouslySetInnerHTML={{ __html: profile.email_signature }}
                 />
+              </div>
+            )}
+          </div>
+
+          {/* Save as template */}
+          <div className="mt-4 rounded-lg border border-dashed border-border p-4">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">Lagre emne og e-postinnhold som mal</p>
+            {!showTplSave ? (
+              <button
+                onClick={() => setShowTplSave(true)}
+                className="inline-flex items-center gap-1 rounded-lg border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+              >
+                + {t("create.tpl.save")}
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={tplNameInput}
+                  onChange={(e) => setTplNameInput(e.target.value)}
+                  placeholder={t("create.tpl.namePlaceholder")}
+                  className="rounded-lg border border-border bg-accent/30 px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                  onKeyDown={(e) => e.key === "Escape" && setShowTplSave(false)}
+                />
+                <button
+                  onClick={handleSaveTemplate}
+                  disabled={savingTpl || !tplNameInput.trim() || (!templateSubject && !bodyText)}
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  {savingTpl ? t("create.tpl.saving") : t("create.tpl.confirm")}
+                </button>
+                <button onClick={() => setShowTplSave(false)} className="text-xs text-muted-foreground hover:text-foreground">✕</button>
               </div>
             )}
           </div>

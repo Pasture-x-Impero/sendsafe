@@ -38,8 +38,13 @@ export function useGenerateEmails() {
       if (error) {
         let message = "Failed to generate emails";
         try {
-          const body = await (error.context as Response).json();
-          message = body.error ?? message;
+          const ctx = error.context as Response;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            message = body.error ?? body.message ?? message;
+          } else if (error.message && error.message !== "Edge Function returned a non-2xx status code") {
+            message = error.message;
+          }
         } catch { /* use default message */ }
         throw new Error(message);
       }
