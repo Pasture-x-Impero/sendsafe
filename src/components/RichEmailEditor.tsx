@@ -153,15 +153,70 @@ const RichEmailEditor = ({
   );
 
   const handlePaste = useCallback(
-    (e: React.ClipboardEvent<HTMLDivElement>) => {
+    async (e: React.ClipboardEvent<HTMLDivElement>) => {
       if (!transformPaste) return;
       const clipboardHtml = e.clipboardData?.getData("text/html");
-      if (!clipboardHtml) return;
+
+      // Raw image paste (no HTML): insert as base64 img
+      if (!clipboardHtml) {
+        const imageFile = Array.from(e.clipboardData?.files ?? []).find((f) =>
+          f.type.startsWith("image/")
+        );
+        if (imageFile && editorRef.current) {
+          e.preventDefault();
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(imageFile);
+          });
+          document.execCommand("insertHTML", false, `<img src="${dataUrl}" style="max-width:100%;" />`);
+          notifyChange();
+        }
+        return;
+      }
+
       e.preventDefault();
+
       const cleaned = transformPaste(clipboardHtml);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = cleaned;
-        notifyChange();
+
+      // Replace broken img srcs (cid:/file:// refs from Outlook) with
+      // base64 data URIs from the clipboard image files, in order.
+      const imageFiles = Array.from(e.clipboardData.files).filter((f) =>
+        f.type.startsWith("image/")
+      );
+
+      if (imageFiles.length > 0) {
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = cleaned;
+        const brokenImgs = Array.from(tempDiv.querySelectorAll("img")).filter((img) => {
+          const src = img.getAttribute("src") ?? "";
+          return !src.startsWith("http") && !src.startsWith("data:");
+        });
+
+        const dataUris = await Promise.all(
+          imageFiles.map(
+            (f) =>
+              new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(f);
+              })
+          )
+        );
+
+        brokenImgs.forEach((img, i) => {
+          if (i < dataUris.length) img.setAttribute("src", dataUris[i]);
+        });
+
+        if (editorRef.current) {
+          editorRef.current.innerHTML = tempDiv.innerHTML;
+          notifyChange();
+        }
+      } else {
+        if (editorRef.current) {
+          editorRef.current.innerHTML = cleaned;
+          notifyChange();
+        }
       }
     },
     [transformPaste, notifyChange]
