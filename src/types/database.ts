@@ -23,6 +23,7 @@ export interface Lead {
   contact_name: string | null;
   industry: string | null;
   comment: string | null;
+  employee_count: number | null;
   enriched_at: string | null;
   status: "imported" | "skipped";
   created_at: string;
@@ -62,6 +63,20 @@ export interface ContactGroupMembership {
   contact_id: string;
   group_id: string;
   created_at: string;
+}
+
+export interface CampaignDraft {
+  id: string;
+  user_id: string;
+  name: string;
+  contact_ids: string[];
+  tone: string;
+  goal: string;
+  language: string;
+  template_subject: string;
+  template_body: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface EmailTemplate {

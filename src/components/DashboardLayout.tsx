@@ -7,7 +7,7 @@ import type { TranslationKey } from "@/i18n/translations";
 
 const navItems = [
   { to: "/dashboard/contacts", labelKey: "sidebar.contacts" as TranslationKey, icon: Users },
-  { to: "/dashboard/create", labelKey: "sidebar.create" as TranslationKey, icon: PenSquare },
+  { to: "/dashboard/campaigns", labelKey: "sidebar.campaigns" as TranslationKey, icon: PenSquare },
   { to: "/dashboard/review", labelKey: "sidebar.review" as TranslationKey, icon: ShieldCheck },
   { to: "/dashboard/sent", labelKey: "sidebar.sent" as TranslationKey, icon: Send },
   { to: "/dashboard/billing", labelKey: "sidebar.billing" as TranslationKey, icon: CreditCard },

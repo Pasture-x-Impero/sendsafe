@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect, useCallback, type ClipboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
+import RichEmailEditor from "@/components/RichEmailEditor";
 
 const SIGNATURE_PURIFY_CONFIG = {
   ADD_ATTR: ["target", "cellpadding", "cellspacing", "border", "align", "valign", "bgcolor", "width", "height", "style", "href", "src"],
@@ -43,9 +43,9 @@ const SettingsPage = () => {
   const [smtpSenderName, setSmtpSenderName] = useState<string | null>(null);
   const [smtpSaving, setSmtpSaving] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState<string | null>(null);
+  const [signatureKey, setSignatureKey] = useState(0);
   const [fontFamily, setFontFamily] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState<string | null>(null);
-  const signatureRef = useRef<HTMLDivElement>(null);
   const signatureInitialized = useRef(false);
 
   // Derive local part and domain from profile
@@ -55,25 +55,17 @@ const SettingsPage = () => {
   const currentSignature = signatureHtml ?? profile?.email_signature ?? "";
   const currentFont = fontFamily ?? profile?.font_family ?? "Arial";
 
-  // Set contentEditable innerHTML from profile on first load (avoids cursor-jump)
+  // Force RichEmailEditor to remount once when profile signature first loads
   useEffect(() => {
-    if (profile?.email_signature && signatureRef.current && !signatureInitialized.current) {
-      signatureRef.current.innerHTML = DOMPurify.sanitize(profile.email_signature, SIGNATURE_PURIFY_CONFIG);
+    if (profile?.email_signature && !signatureInitialized.current) {
       signatureInitialized.current = true;
+      setSignatureKey((k) => k + 1);
     }
   }, [profile?.email_signature]);
 
-  const handleSignatureInput = useCallback(() => {
-    if (signatureRef.current) {
-      setSignatureHtml(signatureRef.current.innerHTML);
-    }
-  }, []);
-
   const handleClearSignature = useCallback(() => {
-    if (signatureRef.current) {
-      signatureRef.current.innerHTML = "";
-    }
     setSignatureHtml("");
+    setSignatureKey((k) => k + 1);
   }, []);
 
   // Clean up Outlook / Word HTML on paste
@@ -101,21 +93,6 @@ const SettingsPage = () => {
     return DOMPurify.sanitize(clean, SIGNATURE_PURIFY_CONFIG);
   }, []);
 
-  const handleSignaturePaste = useCallback((e: ClipboardEvent<HTMLDivElement>) => {
-    // Prefer raw clipboard HTML so that Outlook conditional comments
-    // (<!--[if !mso]>, <!--[if !vml]-->, etc.) are present for cleanOutlookHtml
-    // to process correctly. Data-URI images are preserved by DOMPurify config.
-    const clipboardHtml = e.clipboardData?.getData("text/html");
-    if (clipboardHtml) {
-      e.preventDefault();
-      const cleaned = cleanOutlookHtml(clipboardHtml);
-      if (signatureRef.current) {
-        signatureRef.current.innerHTML = cleaned;
-        setSignatureHtml(cleaned);
-      }
-    }
-    // No HTML on clipboard — let browser handle plain-text paste natively
-  }, [cleanOutlookHtml]);
 
   const addDomain = useAddSenderDomain();
   const verifyDomain = useVerifySenderDomain();
@@ -422,13 +399,15 @@ const SettingsPage = () => {
             <div>
               <label className="mb-1.5 block text-sm font-medium text-foreground">{t("settings.signature.label")}</label>
               <p className="mb-2 text-xs text-muted-foreground">{t("settings.signature.desc")}</p>
-              <div
-                ref={signatureRef}
-                contentEditable
-                onInput={handleSignatureInput}
-                onPaste={handleSignaturePaste}
-                data-placeholder={t("settings.signature.placeholder")}
-                className="min-h-[80px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
+              <RichEmailEditor
+                key={signatureKey}
+                value={currentSignature}
+                onChange={setSignatureHtml}
+                defaultFontFamily={currentFont}
+                placeholder={t("settings.signature.placeholder")}
+                showInsertButtons={false}
+                minHeight="80px"
+                transformPaste={cleanOutlookHtml}
               />
               {currentSignature && (
                 <button

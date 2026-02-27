@@ -13,11 +13,11 @@ import {
 import { toast } from "sonner";
 import type { Lead } from "@/types/database";
 
-type SortField = "domain" | "company" | "contact_email" | "contact_name" | "industry";
+type SortField = "domain" | "company" | "contact_email" | "contact_name" | "industry" | "employee_count";
 type SortDir = "asc" | "desc";
-type PendingRow = { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupNames: string[] };
-type ManualRow = { company: string; contact_email: string; contact_name: string; domain: string; industry: string; groupId: string };
-const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", groupId: "" });
+type PendingRow = { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; employee_count: number | null; groupNames: string[] };
+type ManualRow = { company: string; contact_email: string; contact_name: string; domain: string; industry: string; employee_count: string; groupId: string };
+const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", employee_count: "", groupId: "" });
 
 const ContactsPage = () => {
   const { t } = useLanguage();
@@ -37,6 +37,8 @@ const ContactsPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
   const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
+  const [empMin, setEmpMin] = useState<string>("");
+  const [empMax, setEmpMax] = useState<string>("");
   const [showGroupFilter, setShowGroupFilter] = useState(false);
   const [showIndustryFilter, setShowIndustryFilter] = useState(false);
   const groupFilterRef = useRef<HTMLDivElement>(null);
@@ -85,15 +87,32 @@ const ContactsPage = () => {
     if (filterIndustries.size > 0) {
       result = result.filter((lead) => lead.industry != null && filterIndustries.has(lead.industry));
     }
+    const min = empMin !== "" ? parseInt(empMin) : null;
+    const max = empMax !== "" ? parseInt(empMax) : null;
+    if (min !== null || max !== null) {
+      result = result.filter((lead) => {
+        const ec = lead.employee_count;
+        if (ec == null) return false;
+        if (min !== null && ec < min) return false;
+        if (max !== null && ec > max) return false;
+        return true;
+      });
+    }
     return result;
-  }, [leads, filterGroupIds, filterIndustries, memberships]);
+  }, [leads, filterGroupIds, filterIndustries, memberships, empMin, empMax]);
 
   // Sort
   const sortedLeads = useMemo(() => {
     if (!sortField) return filtered;
     return [...filtered].sort((a, b) => {
-      const aVal = (a[sortField] || "").toLowerCase();
-      const bVal = (b[sortField] || "").toLowerCase();
+      if (sortField === "employee_count") {
+        const aVal = a.employee_count ?? -1;
+        const bVal = b.employee_count ?? -1;
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const sf = sortField as Exclude<SortField, "employee_count">;
+      const aVal = (a[sf] || "").toLowerCase();
+      const bVal = (b[sf] || "").toLowerCase();
       const cmp = aVal.localeCompare(bVal);
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -200,7 +219,7 @@ const ContactsPage = () => {
   const confirmImport = async () => {
     if (!pendingRows) return;
     try {
-      const toImport = pendingRows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, status: "imported" as const }));
+      const toImport = pendingRows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, employee_count: r.employee_count, status: "imported" as const }));
       const result = await importLeads.mutateAsync(toImport);
       // Build a local group cache seeded from current groups to avoid duplicates
       const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
@@ -227,11 +246,11 @@ const ContactsPage = () => {
   const downloadTemplate = useCallback(async () => {
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar"],
-      ["Acme AS", "ola@acme.no", "Ola Nordmann", "acme.no", "Kunde", "Teknologi", "Møtt på konferanse"],
-      ["Globex AS", "kari@globex.no", "Kari Hansen", "globex.no", "Lead", "Finans", "Følg opp Q2"],
+      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar", "Ansatte"],
+      ["Acme AS", "ola@acme.no", "Ola Nordmann", "acme.no", "Kunde", "Teknologi", "Møtt på konferanse", 50],
+      ["Globex AS", "kari@globex.no", "Kari Hansen", "globex.no", "Lead", "Finans", "Følg opp Q2", 120],
     ]);
-    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }];
+    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 25 }, { wch: 10 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contacts");
     XLSX.writeFile(wb, "sendsafe_contacts_template.xlsx");
@@ -242,13 +261,13 @@ const ContactsPage = () => {
     const rows = sortedLeads.map((lead) => {
       const contactGroups = getGroupsForContact(lead.id);
       const groupStr = contactGroups.map((g) => g.name).join(", ");
-      return [lead.company, lead.contact_email, lead.contact_name || "", lead.domain || "", groupStr, lead.industry || "", lead.comment || ""];
+      return [lead.company, lead.contact_email, lead.contact_name || "", lead.domain || "", groupStr, lead.industry || "", lead.comment || "", lead.employee_count ?? ""];
     });
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar"],
+      ["Selskap", "E-post", "Navn", "Domene", "Gruppe", "Bransje", "Kommentar", "Ansatte"],
       ...rows,
     ]);
-    ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }];
+    ws["!cols"] = [{ wch: 18 }, { wch: 20 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 25 }, { wch: 10 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Contacts");
     XLSX.writeFile(wb, "sendsafe_contacts_export.xlsx");
@@ -271,12 +290,14 @@ const ContactsPage = () => {
         const industryIdx = header.findIndex((h) => h.includes("industry") || h.includes("bransje"));
         const groupsIdx = header.findIndex((h) => h.includes("group") || h.includes("gruppe"));
         const commentIdx = header.findIndex((h) => h.includes("comment") || h.includes("kommentar") || h.includes("notat"));
+        const employeeIdx = header.findIndex((h) => h.includes("ansatte") || h.includes("employees") || h.includes("employee_count"));
         if (companyIdx === -1 || emailIdx === -1) { toast.error("CSV must have 'company' and 'email' columns"); return; }
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(",").map((c) => c.trim());
           if (cols[emailIdx]) {
             const raw = groupsIdx !== -1 ? cols[groupsIdx] || null : null;
-            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, groupNames: parseGroups(raw) });
+            const empRaw = employeeIdx !== -1 ? parseInt(cols[employeeIdx]) : NaN;
+            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
           }
         }
       } else if (ext === "xlsx" || ext === "xls") {
@@ -294,9 +315,11 @@ const ContactsPage = () => {
           const industryKey = keys.find((k) => /industry|bransje/i.test(k));
           const groupsKey = keys.find((k) => /group|gruppe/i.test(k));
           const commentKey = keys.find((k) => /comment|kommentar|notat/i.test(k));
+          const employeeKey = keys.find((k) => /ansatte|employees|employee_count/i.test(k));
           if (companyKey && emailKey && row[emailKey]) {
             const raw = groupsKey ? row[groupsKey] || null : null;
-            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, groupNames: parseGroups(raw) });
+            const empRaw = employeeKey ? parseInt(String(row[employeeKey])) : NaN;
+            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
           }
         }
       } else { toast.error("Unsupported file type. Use .csv, .xlsx, or .xls"); return; }
@@ -318,7 +341,8 @@ const ContactsPage = () => {
     if (valid.length === 0) return;
     const rows: PendingRow[] = valid.map((r) => {
       const group = groups.find((g) => g.id === r.groupId);
-      return { domain: r.domain.trim() || null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, groupNames: group ? [group.name] : [] };
+      const empParsed = r.employee_count.trim() ? parseInt(r.employee_count.trim()) : null;
+      return { domain: r.domain.trim() || null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, employee_count: isNaN(empParsed!) ? null : empParsed, groupNames: group ? [group.name] : [] };
     });
     setPendingRows(rows);
     setImportStats(null);
@@ -327,7 +351,7 @@ const ContactsPage = () => {
   // Inline edit helpers
   const startEditRow = (lead: Lead) => {
     setEditingRow(lead.id);
-    setEditValues({ domain: lead.domain || "", company: lead.company, contact_email: lead.contact_email, contact_name: lead.contact_name || "", industry: lead.industry || "", comment: lead.comment || "" });
+    setEditValues({ domain: lead.domain || "", company: lead.company, contact_email: lead.contact_email, contact_name: lead.contact_name || "", industry: lead.industry || "", comment: lead.comment || "", employee_count: lead.employee_count?.toString() || "" });
   };
 
   const commitEditRow = () => {
@@ -340,6 +364,7 @@ const ContactsPage = () => {
       contact_name: editValues.contact_name || null,
       industry: editValues.industry || null,
       comment: editValues.comment || null,
+      employee_count: editValues.employee_count ? parseInt(editValues.employee_count) : null,
     });
     setEditingRow(null);
     setEditValues({});
@@ -398,6 +423,7 @@ const ContactsPage = () => {
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.industry")}</th>
                     <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.comment")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ansatte</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -416,6 +442,7 @@ const ContactsPage = () => {
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{row.industry || "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{row.comment || "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{row.employee_count ?? "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -451,6 +478,7 @@ const ContactsPage = () => {
                       <input value={row.contact_name} onChange={(e) => updateManualRow(i, "contact_name", e.target.value)} placeholder={t("contacts.col.name")} className="w-36 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input value={row.domain} onChange={(e) => updateManualRow(i, "domain", e.target.value)} placeholder={t("contacts.col.domain")} className="w-36 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input value={row.industry} onChange={(e) => updateManualRow(i, "industry", e.target.value)} placeholder={t("contacts.col.industry")} className="w-32 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input type="number" min="0" value={row.employee_count} onChange={(e) => updateManualRow(i, "employee_count", e.target.value)} placeholder="Ansatte" className="w-24 min-w-0 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={row.groupId} onChange={(e) => updateManualRow(i, "groupId", e.target.value)} className="w-36 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
                         <option value="">{t("contacts.col.groups")}</option>
                         {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -535,6 +563,31 @@ const ContactsPage = () => {
           </div>
         )}
 
+        {/* Employee count range filter */}
+        <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+          <span className="text-xs font-medium text-muted-foreground">Ansatte</span>
+          <input
+            type="number"
+            min="0"
+            value={empMin}
+            onChange={(e) => setEmpMin(e.target.value)}
+            placeholder="Fra"
+            className="w-16 rounded border border-border bg-accent/30 px-1.5 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
+          />
+          <span className="text-xs text-muted-foreground">–</span>
+          <input
+            type="number"
+            min="0"
+            value={empMax}
+            onChange={(e) => setEmpMax(e.target.value)}
+            placeholder="Til"
+            className="w-16 rounded border border-border bg-accent/30 px-1.5 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none"
+          />
+          {(empMin !== "" || empMax !== "") && (
+            <button onClick={() => { setEmpMin(""); setEmpMax(""); }} className="ml-0.5 text-muted-foreground hover:text-foreground"><X className="h-3 w-3" /></button>
+          )}
+        </div>
+
         <button onClick={() => setShowCreateGroup(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent">
           <Plus className="h-3.5 w-3.5" /> {t("contacts.createGroup")}
         </button>
@@ -612,6 +665,9 @@ const ContactsPage = () => {
                 <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
                   {t("contacts.col.industry")}<SortIcon field="industry" />
                 </th>
+                <th className="cursor-pointer select-none px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("employee_count")}>
+                  Ansatte<SortIcon field="employee_count" />
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.comment")}</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
@@ -630,6 +686,7 @@ const ContactsPage = () => {
                       <td className="px-4 py-2"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                       <td className="px-4 py-2">{/* groups not editable inline */}</td>
                       <td className="px-4 py-2"><input value={editValues.industry} onChange={(e) => setEditValues((v) => ({ ...v, industry: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-4 py-2"><input type="number" min="0" value={editValues.employee_count} onChange={(e) => setEditValues((v) => ({ ...v, employee_count: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                     </>
                   ) : (
                     <>
@@ -650,6 +707,7 @@ const ContactsPage = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{lead.industry || "—"}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{lead.employee_count ?? "—"}</td>
                     </>
                   )}
                   <td className="px-4 py-3 text-sm text-muted-foreground">

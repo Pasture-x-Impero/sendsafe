@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
@@ -8,6 +8,7 @@ import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-group
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 import { useEmailTemplates, useCreateEmailTemplate, useDeleteEmailTemplate } from "@/hooks/use-email-templates";
 import { useSentEmailCounts } from "@/hooks/use-emails";
+import { useCampaignDrafts, useUpdateCampaignDraft } from "@/hooks/use-campaign-drafts";
 import type { Email } from "@/types/database";
 import { toast } from "sonner";
 import RichEmailEditor from "@/components/RichEmailEditor";
@@ -47,6 +48,8 @@ const FIELD_MAP: Record<string, string> = {
 const CreatePage = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get("draft");
   const { data: leads = [], isLoading } = useLeads();
   const { data: profile } = useProfile();
   const { data: groups = [] } = useContactGroups();
@@ -56,6 +59,8 @@ const CreatePage = () => {
   const { data: sentCounts = new Map() } = useSentEmailCounts();
   const createTemplate = useCreateEmailTemplate();
   const deleteTemplate = useDeleteEmailTemplate();
+  const { data: drafts = [] } = useCampaignDrafts();
+  const updateDraft = useUpdateCampaignDraft();
 
   const [step, setStep] = useState(0);
   const [savingTpl, setSavingTpl] = useState(false);
@@ -65,6 +70,8 @@ const CreatePage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
   const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
+  const [empMin, setEmpMin] = useState<string>("");
+  const [empMax, setEmpMax] = useState<string>("");
   const [showGroupFilter, setShowGroupFilter] = useState(false);
   const [showIndustryFilter, setShowIndustryFilter] = useState(false);
   const groupFilterRef = useRef<HTMLDivElement>(null);
@@ -91,6 +98,51 @@ const CreatePage = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Draft: load state from URL param on first render
+  const draftInitialized = useRef(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!draftId || draftInitialized.current || drafts.length === 0) return;
+    const draft = drafts.find((d) => d.id === draftId);
+    if (!draft) return;
+    draftInitialized.current = true;
+    if (draft.name && draft.name !== "Uten navn") setCampaignName(draft.name);
+    if (draft.contact_ids.length > 0) setSelectedIds(new Set(draft.contact_ids));
+    if (draft.tone) setTone(draft.tone);
+    if (draft.goal) setGoal(draft.goal);
+    if (draft.language) setCampaignLanguage(draft.language);
+    if (draft.template_subject) setTemplateSubject(draft.template_subject);
+    if (draft.template_body) {
+      const body = draft.template_body.includes("<") ? draft.template_body : draft.template_body.replace(/\n/g, "<br>");
+      setTemplateBody(body);
+      setTemplateKey((k) => k + 1);
+    }
+  }, [draftId, drafts]);
+
+  // Draft: auto-save on state changes (debounced)
+  const selectedIdsStr = useMemo(() => Array.from(selectedIds).sort().join(","), [selectedIds]);
+
+  useEffect(() => {
+    if (!draftId || !draftInitialized.current) return;
+    const ids = Array.from(selectedIds);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      updateDraft.mutate({
+        id: draftId,
+        name: campaignName.trim() || "Uten navn",
+        contact_ids: ids,
+        tone,
+        goal,
+        language: campaignLanguage,
+        template_subject: templateSubject,
+        template_body: templateBody,
+      });
+    }, 1500);
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, campaignName, selectedIdsStr, tone, goal, campaignLanguage, templateSubject, templateBody]);
 
   const toggleFilterGroup = (id: string) => {
     setFilterGroupIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -142,8 +194,19 @@ const CreatePage = () => {
           (l.contact_name || "").toLowerCase().includes(q)
       );
     }
+    const min = empMin !== "" ? parseInt(empMin) : null;
+    const max = empMax !== "" ? parseInt(empMax) : null;
+    if (min !== null || max !== null) {
+      result = result.filter((l) => {
+        const ec = l.employee_count;
+        if (ec == null) return false;
+        if (min !== null && ec < min) return false;
+        if (max !== null && ec > max) return false;
+        return true;
+      });
+    }
     return result;
-  }, [leads, filterGroupIds, filterIndustries, search, memberships]);
+  }, [leads, filterGroupIds, filterIndustries, search, memberships, empMin, empMax]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -241,8 +304,23 @@ const CreatePage = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold text-foreground">{t("create.title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("create.desc")}</p>
+        <div className="flex items-center justify-between">
+          <div>
+            {draftId && (
+              <button
+                onClick={() => navigate("/dashboard/campaigns")}
+                className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-3 w-3" /> Tilbake til kampanjer
+              </button>
+            )}
+            <h1 className="font-heading text-2xl font-bold text-foreground">{t("create.title")}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t("create.desc")}</p>
+          </div>
+          {draftId && updateDraft.isPending && (
+            <span className="text-xs text-muted-foreground">Lagrer…</span>
+          )}
+        </div>
       </div>
 
       {/* Step indicator */}
@@ -335,6 +413,14 @@ const CreatePage = () => {
                   </div>
                 )}
 
+                {/* Employee count range filter */}
+                <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+                  <span className="text-xs font-medium text-muted-foreground">Ansatte</span>
+                  <input type="number" min="0" value={empMin} onChange={(e) => setEmpMin(e.target.value)} placeholder="Fra" className="w-14 rounded border border-border bg-accent/30 px-1.5 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none" />
+                  <span className="text-xs text-muted-foreground">–</span>
+                  <input type="number" min="0" value={empMax} onChange={(e) => setEmpMax(e.target.value)} placeholder="Til" className="w-14 rounded border border-border bg-accent/30 px-1.5 py-0.5 text-xs text-foreground focus:border-primary focus:outline-none" />
+                </div>
+
                 <div className="relative flex-1 min-w-40">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
@@ -402,6 +488,9 @@ const CreatePage = () => {
                           ))}
                         {lead.industry && (
                           <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.industry}</span>
+                        )}
+                        {lead.employee_count != null && (
+                          <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.employee_count} ansatte</span>
                         )}
                         {(sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) > 0 && (
                           <span className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">

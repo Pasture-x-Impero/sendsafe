@@ -6,6 +6,10 @@ interface RichEmailEditorProps {
   onChange: (html: string) => void;
   defaultFontFamily?: string;
   placeholder?: string;
+  showInsertButtons?: boolean;
+  minHeight?: string;
+  /** If provided, called with clipboard HTML on paste; return value replaces editor content */
+  transformPaste?: (html: string) => string;
 }
 
 const FONT_OPTIONS = ["Arial", "Calibri", "Helvetica", "Georgia", "Verdana"] as const;
@@ -35,6 +39,9 @@ const RichEmailEditor = ({
   onChange,
   defaultFontFamily = "Arial",
   placeholder,
+  showInsertButtons = true,
+  minHeight = "220px",
+  transformPaste,
 }: RichEmailEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
@@ -143,6 +150,21 @@ const RichEmailEditor = ({
       notifyChange();
     },
     [notifyChange]
+  );
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      if (!transformPaste) return;
+      const clipboardHtml = e.clipboardData?.getData("text/html");
+      if (!clipboardHtml) return;
+      e.preventDefault();
+      const cleaned = transformPaste(clipboardHtml);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = cleaned;
+        notifyChange();
+      }
+    },
+    [transformPaste, notifyChange]
   );
 
   return (
@@ -255,51 +277,55 @@ const RichEmailEditor = ({
           )}
         </div>
 
-        <div className="mx-1 h-4 w-px bg-border" />
+        {showInsertButtons && (
+          <>
+            <div className="mx-1 h-4 w-px bg-border" />
 
-        {/* AI instruction */}
-        <button
-          onMouseDown={(e) => {
-            e.preventDefault();
-            insertAI();
-          }}
-          className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 hover:bg-violet-200 dark:text-violet-300 dark:bg-violet-900/30"
-          title="Sett inn AI-instruksjon"
-        >
-          <Sparkles className="h-3 w-3" /> AI
-        </button>
+            {/* AI instruction */}
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                insertAI();
+              }}
+              className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-violet-600 bg-violet-100 hover:bg-violet-200 dark:text-violet-300 dark:bg-violet-900/30"
+              title="Sett inn AI-instruksjon"
+            >
+              <Sparkles className="h-3 w-3" /> AI
+            </button>
 
-        {/* Field dropdown */}
-        <div className="relative">
-          <button
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setShowFieldMenu((v) => !v);
-              setShowLinkInput(false);
-            }}
-            className="inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-xs font-medium text-sky-600 bg-sky-100 hover:bg-sky-200 dark:text-sky-300 dark:bg-sky-900/30"
-            title="Sett inn feltvariabel"
-          >
-            Felt <ChevronDown className="h-3 w-3" />
-          </button>
-          {showFieldMenu && (
-            <div className="absolute right-0 top-full z-30 mt-1 min-w-[180px] rounded-lg border border-border bg-card p-1 shadow-lg">
-              {FIELD_OPTIONS.map((f) => (
-                <button
-                  key={f.value}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    insertField(f.value);
-                  }}
-                  className="flex w-full items-center justify-between rounded px-3 py-1.5 text-xs text-foreground hover:bg-accent"
-                >
-                  <span>{f.label}</span>
-                  <code className="ml-2 text-muted-foreground">{f.value}</code>
-                </button>
-              ))}
+            {/* Field dropdown */}
+            <div className="relative">
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setShowFieldMenu((v) => !v);
+                  setShowLinkInput(false);
+                }}
+                className="inline-flex items-center gap-0.5 rounded px-2 py-0.5 text-xs font-medium text-sky-600 bg-sky-100 hover:bg-sky-200 dark:text-sky-300 dark:bg-sky-900/30"
+                title="Sett inn feltvariabel"
+              >
+                Felt <ChevronDown className="h-3 w-3" />
+              </button>
+              {showFieldMenu && (
+                <div className="absolute right-0 top-full z-30 mt-1 min-w-[180px] rounded-lg border border-border bg-card p-1 shadow-lg">
+                  {FIELD_OPTIONS.map((f) => (
+                    <button
+                      key={f.value}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        insertField(f.value);
+                      }}
+                      className="flex w-full items-center justify-between rounded px-3 py-1.5 text-xs text-foreground hover:bg-accent"
+                    >
+                      <span>{f.label}</span>
+                      <code className="ml-2 text-muted-foreground">{f.value}</code>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Editor content area */}
@@ -308,11 +334,12 @@ const RichEmailEditor = ({
         contentEditable
         suppressContentEditableWarning
         onInput={notifyChange}
+        onPaste={transformPaste ? handlePaste : undefined}
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
         data-placeholder={placeholder}
-        style={{ fontFamily: defaultFontFamily, fontSize: "14px" }}
-        className="min-h-[220px] w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-400"
+        style={{ fontFamily: defaultFontFamily, fontSize: "14px", minHeight }}
+        className="w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-400"
       />
     </div>
   );

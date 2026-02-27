@@ -146,6 +146,7 @@ export const translations = {
 
     // Dashboard sidebar
     "sidebar.contacts": "Contacts",
+    "sidebar.campaigns": "Campaigns",
     "sidebar.create": "Create",
     "sidebar.review": "Review",
     "sidebar.sent": "Sent",
@@ -558,6 +559,7 @@ export const translations = {
 
     // Dashboard sidebar
     "sidebar.contacts": "Kontakter",
+    "sidebar.campaigns": "Kampanjer",
     "sidebar.create": "Opprett",
     "sidebar.review": "Gjennomgang",
     "sidebar.sent": "Sendt",

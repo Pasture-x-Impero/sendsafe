@@ -27,7 +27,7 @@ export function useImportLeads() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (leads: Pick<Lead, "company" | "contact_email" | "contact_name" | "industry" | "domain" | "comment" | "status">[]) => {
+    mutationFn: async (leads: Pick<Lead, "company" | "contact_email" | "contact_name" | "industry" | "domain" | "comment" | "employee_count" | "status">[]) => {
       if (!user) throw new Error("Not authenticated");
       const rows = leads.map((l) => ({ ...l, user_id: user.id }));
       const { data, error } = await supabase

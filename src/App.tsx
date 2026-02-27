@@ -12,6 +12,7 @@ import Onboarding from "./pages/Onboarding";
 import DashboardLayout from "./components/DashboardLayout";
 import ContactsPage from "./pages/dashboard/ContactsPage";
 import CreatePage from "./pages/dashboard/CreatePage";
+import CampaignsPage from "./pages/dashboard/CampaignsPage";
 import ReviewPage from "./pages/dashboard/ReviewPage";
 import SentPage from "./pages/dashboard/SentPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/dashboard" element={<DashboardLayout />}>
               <Route index element={<Navigate to="contacts" replace />} />
               <Route path="contacts" element={<ContactsPage />} />
+              <Route path="campaigns" element={<CampaignsPage />} />
               <Route path="create" element={<CreatePage />} />
               <Route path="review" element={<ReviewPage />} />
               <Route path="sent" element={<SentPage />} />

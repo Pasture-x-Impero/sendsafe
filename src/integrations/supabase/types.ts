@@ -145,6 +145,48 @@ export type Database = {
           },
         ]
       }
+      campaign_drafts: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          contact_ids: string[]
+          tone: string
+          goal: string
+          language: string
+          template_subject: string
+          template_body: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name?: string
+          contact_ids?: string[]
+          tone?: string
+          goal?: string
+          language?: string
+          template_subject?: string
+          template_body?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          contact_ids?: string[]
+          tone?: string
+          goal?: string
+          language?: string
+          template_subject?: string
+          template_body?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           comment: string | null
@@ -153,6 +195,7 @@ export type Database = {
           contact_name: string | null
           created_at: string
           domain: string | null
+          employee_count: number | null
           enriched_at: string | null
           id: string
           industry: string | null
@@ -166,6 +209,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           domain?: string | null
+          employee_count?: number | null
           enriched_at?: string | null
           id?: string
           industry?: string | null
@@ -179,6 +223,7 @@ export type Database = {
           contact_name?: string | null
           created_at?: string
           domain?: string | null
+          employee_count?: number | null
           enriched_at?: string | null
           id?: string
           industry?: string | null
