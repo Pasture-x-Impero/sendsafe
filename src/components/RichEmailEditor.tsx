@@ -312,7 +312,7 @@ const RichEmailEditor = ({
         onKeyUp={saveSelection}
         data-placeholder={placeholder}
         style={{ fontFamily: defaultFontFamily, fontSize: "14px" }}
-        className="min-h-[220px] w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]"
+        className="min-h-[220px] w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-400"
       />
     </div>
   );
