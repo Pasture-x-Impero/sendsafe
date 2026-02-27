@@ -61,6 +61,7 @@ const CreatePage = () => {
   const [savingTpl, setSavingTpl] = useState(false);
   const [tplNameInput, setTplNameInput] = useState("");
   const [showTplSave, setShowTplSave] = useState(false);
+  const [confirmDeleteTplId, setConfirmDeleteTplId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filterGroupIds, setFilterGroupIds] = useState<Set<string>>(new Set());
   const [filterIndustries, setFilterIndustries] = useState<Set<string>>(new Set());
@@ -528,12 +529,23 @@ const CreatePage = () => {
               <label className="mb-2 block text-sm font-semibold text-foreground">Bruk mal</label>
               <div className="flex flex-wrap gap-2">
                 {templates.map((tpl) => (
-                  <div key={tpl.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-accent px-3 py-1 text-xs font-medium text-foreground">
-                    <button onClick={() => loadTemplate(tpl)}>{tpl.name}</button>
+                  <div key={tpl.id} className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${confirmDeleteTplId === tpl.id ? "border-destructive/40 bg-destructive/10" : "border-border bg-accent text-foreground"}`}>
+                    <button onClick={() => { setConfirmDeleteTplId(null); loadTemplate(tpl); }} className="text-foreground">{tpl.name}</button>
                     <button
-                      onClick={() => { deleteTemplate.mutate(tpl.id); toast.success(t("create.tpl.deleted")); }}
-                      className="ml-1 text-muted-foreground hover:text-destructive"
-                    >×</button>
+                      onClick={() => {
+                        if (confirmDeleteTplId === tpl.id) {
+                          deleteTemplate.mutate(tpl.id);
+                          toast.success(t("create.tpl.deleted"));
+                          setConfirmDeleteTplId(null);
+                        } else {
+                          setConfirmDeleteTplId(tpl.id);
+                        }
+                      }}
+                      className={`ml-1 text-xs transition-colors ${confirmDeleteTplId === tpl.id ? "font-semibold text-destructive" : "text-muted-foreground hover:text-destructive"}`}
+                      title={confirmDeleteTplId === tpl.id ? "Klikk igjen for å bekrefte sletting" : "Slett mal"}
+                    >
+                      {confirmDeleteTplId === tpl.id ? "Slett?" : "×"}
+                    </button>
                   </div>
                 ))}
               </div>
