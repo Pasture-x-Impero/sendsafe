@@ -73,6 +73,17 @@ async function fillSlot(
   return result.choices?.[0]?.message?.content?.trim() ?? instruction;
 }
 
+// Strip editor-only span wrappers (field variable badges + AI instruction badges).
+// Chrome serialises innerHTML with rgb() colours, not the original hex, so we
+// match both forms:
+//   field variable badge : background #e0f2fe  = rgb(224, 242, 254)
+//   AI instruction badge  : background #f3e8ff  = rgb(243, 232, 255)
+function stripEditorHints(html: string): string {
+  return html
+    .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#e0f2fe|rgb\(\s*224\s*,\s*242\s*,\s*254\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+    .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#f3e8ff|rgb\(\s*243\s*,\s*232\s*,\s*255\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+}
+
 // Substitute {field} variables from contact data before AI processing.
 // Unknown variables are left as-is. Missing values become empty string and are tracked.
 function substituteFields(
@@ -232,8 +243,10 @@ Deno.serve(async (req) => {
         language: language || "no",
       };
 
-      const { result: subjectWithFields, missing: subjectMissing } = substituteFields(template_subject, contact);
-      const { result: bodyWithFields, missing: bodyMissing } = substituteFields(template_body, contact);
+      const cleanSubject = stripEditorHints(template_subject);
+      const cleanBody = stripEditorHints(template_body);
+      const { result: subjectWithFields, missing: subjectMissing } = substituteFields(cleanSubject, contact);
+      const { result: bodyWithFields, missing: bodyMissing } = substituteFields(cleanBody, contact);
       const allMissing = [...new Set([...subjectMissing, ...bodyMissing])];
 
       let subject = subjectWithFields;

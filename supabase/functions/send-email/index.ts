@@ -119,13 +119,13 @@ Deno.serve(async (req) => {
 
     const recipient = test_email || email.contact_email;
 
-    // Strip editor hint spans (variable badges and AI instruction badges) that
-    // have colored backgrounds — these are visual aids in the editor only and
-    // must not appear in the sent email.
+    // Strip editor hint spans (variable badges and AI instruction badges).
+    // Chrome serialises innerHTML colours as rgb(), not the original hex, so
+    // we match both:  #e0f2fe = rgb(224,242,254)  and  #f3e8ff = rgb(243,232,255)
     const stripEditorSpans = (html: string): string =>
       html
-        .replace(/<span[^>]*background:\s*#e0f2fe[^>]*>([\s\S]*?)<\/span>/gi, "$1")
-        .replace(/<span[^>]*background:\s*#f3e8ff[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+        .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#e0f2fe|rgb\(\s*224\s*,\s*242\s*,\s*254\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+        .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#f3e8ff|rgb\(\s*243\s*,\s*232\s*,\s*255\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1");
 
     // Build email body, appending signature if present
     const fontFamily = profile.font_family || "Arial";
