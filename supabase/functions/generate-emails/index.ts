@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-    if (userError || !user) return err("Unauthorized", 401);
+    if (userError || !user) return err(`Unauthorized: ${userError?.message ?? "no user"}`, 401);
 
     const {
       contact_ids,
