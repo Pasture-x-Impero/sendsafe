@@ -155,69 +155,54 @@ const RichEmailEditor = ({
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent<HTMLDivElement>) => {
       if (!transformPaste) return;
-      const clipboardHtml = e.clipboardData?.getData("text/html");
 
-      // Raw image paste (no HTML): insert as base64 img
-      if (!clipboardHtml) {
-        const imageFile = Array.from(e.clipboardData?.files ?? []).find((f) =>
-          f.type.startsWith("image/")
-        );
-        if (imageFile && editorRef.current) {
-          e.preventDefault();
-          const dataUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(imageFile);
-          });
-          document.execCommand("insertHTML", false, `<img src="${dataUrl}" style="max-width:100%;" />`);
-          notifyChange();
-        }
-        return;
+      // Select all existing content so native paste replaces it entirely
+      const el = editorRef.current;
+      if (el) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }
 
-      e.preventDefault();
+      // Do NOT preventDefault — let the browser paste natively.
+      // Chrome resolves Outlook cid: image references into blob: URLs
+      // automatically during native paste, which we can't do manually.
+      // After a tick the pasted content is in innerHTML.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-      const cleaned = transformPaste(clipboardHtml);
+      if (!editorRef.current) return;
+      let html = editorRef.current.innerHTML;
 
-      // Replace broken img srcs (cid:/file:// refs from Outlook) with
-      // base64 data URIs from the clipboard image files, in order.
-      const imageFiles = Array.from(e.clipboardData.files).filter((f) =>
-        f.type.startsWith("image/")
-      );
-
-      if (imageFiles.length > 0) {
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = cleaned;
-        const brokenImgs = Array.from(tempDiv.querySelectorAll("img")).filter((img) => {
-          const src = img.getAttribute("src") ?? "";
-          return !src.startsWith("http") && !src.startsWith("data:");
-        });
-
-        const dataUris = await Promise.all(
-          imageFiles.map(
-            (f) =>
-              new Promise<string>((resolve) => {
+      // Convert temporary blob: URLs to persistent base64 data URIs
+      const blobMatches = [...html.matchAll(/src="(blob:[^"]+)"/gi)];
+      if (blobMatches.length > 0) {
+        const replacements = await Promise.all(
+          blobMatches.map(async ([, blobUrl]) => {
+            try {
+              const resp = await fetch(blobUrl);
+              const blob = await resp.blob();
+              const dataUri = await new Promise<string>((resolve) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(f);
-              })
-          )
+                reader.readAsDataURL(blob);
+              });
+              return [blobUrl, dataUri] as [string, string];
+            } catch {
+              return [blobUrl, blobUrl] as [string, string];
+            }
+          })
         );
-
-        brokenImgs.forEach((img, i) => {
-          if (i < dataUris.length) img.setAttribute("src", dataUris[i]);
-        });
-
-        if (editorRef.current) {
-          editorRef.current.innerHTML = tempDiv.innerHTML;
-          notifyChange();
-        }
-      } else {
-        if (editorRef.current) {
-          editorRef.current.innerHTML = cleaned;
-          notifyChange();
+        for (const [blobUrl, dataUri] of replacements) {
+          html = html.replaceAll(blobUrl, dataUri);
         }
       }
+
+      // Run the cleanup/transform (strips mso-* styles, Outlook tags, etc.)
+      const cleaned = transformPaste(html);
+      editorRef.current.innerHTML = cleaned;
+      notifyChange();
     },
     [transformPaste, notifyChange]
   );
