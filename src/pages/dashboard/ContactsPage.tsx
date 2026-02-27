@@ -16,8 +16,8 @@ import type { Lead } from "@/types/database";
 type SortField = "domain" | "company" | "contact_email" | "contact_name" | "industry";
 type SortDir = "asc" | "desc";
 type PendingRow = { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; groupNames: string[] };
-type ManualRow = { company: string; contact_email: string; contact_name: string; industry: string; groupId: string };
-const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", industry: "", groupId: "" });
+type ManualRow = { company: string; contact_email: string; contact_name: string; domain: string; industry: string; groupId: string };
+const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", groupId: "" });
 
 const ContactsPage = () => {
   const { t } = useLanguage();
@@ -318,7 +318,7 @@ const ContactsPage = () => {
     if (valid.length === 0) return;
     const rows: PendingRow[] = valid.map((r) => {
       const group = groups.find((g) => g.id === r.groupId);
-      return { domain: null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, groupNames: group ? [group.name] : [] };
+      return { domain: r.domain.trim() || null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, groupNames: group ? [group.name] : [] };
     });
     setPendingRows(rows);
     setImportStats(null);
@@ -449,6 +449,7 @@ const ContactsPage = () => {
                       <input value={row.company} onChange={(e) => updateManualRow(i, "company", e.target.value)} placeholder={`${t("contacts.col.company")} *`} className="w-40 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input value={row.contact_email} onChange={(e) => updateManualRow(i, "contact_email", e.target.value)} placeholder={`${t("contacts.col.email")} *`} className="w-44 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input value={row.contact_name} onChange={(e) => updateManualRow(i, "contact_name", e.target.value)} placeholder={t("contacts.col.name")} className="w-36 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input value={row.domain} onChange={(e) => updateManualRow(i, "domain", e.target.value)} placeholder={t("contacts.col.domain")} className="w-36 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <input value={row.industry} onChange={(e) => updateManualRow(i, "industry", e.target.value)} placeholder={t("contacts.col.industry")} className="w-32 min-w-0 flex-1 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
                       <select value={row.groupId} onChange={(e) => updateManualRow(i, "groupId", e.target.value)} className="w-36 rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
                         <option value="">{t("contacts.col.groups")}</option>
@@ -641,9 +642,9 @@ const ContactsPage = () => {
                           {getGroupsForContact(lead.id).map((g) => (
                             <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
                           ))}
-                          {(sentCounts.get(lead.id) ?? 0) > 0 && (
+                          {(sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) > 0 && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-                              Sent <span className="rounded-full bg-green-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{sentCounts.get(lead.id)}</span>
+                              Sent <span className="rounded-full bg-green-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{sentCounts.get(lead.contact_email.toLowerCase())}</span>
                             </span>
                           )}
                         </div>
