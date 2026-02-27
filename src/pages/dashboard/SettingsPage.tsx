@@ -3,6 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import RichEmailEditor from "@/components/RichEmailEditor";
@@ -46,6 +47,7 @@ const SettingsPage = () => {
   const [signatureKey, setSignatureKey] = useState(0);
   const [fontFamily, setFontFamily] = useState<string | null>(null);
   const [domainInput, setDomainInput] = useState<string | null>(null);
+  const [sendingTest, setSendingTest] = useState(false);
   const signatureInitialized = useRef(false);
 
   // Derive local part and domain from profile
@@ -62,6 +64,22 @@ const SettingsPage = () => {
       setSignatureKey((k) => k + 1);
     }
   }, [profile?.email_signature]);
+
+  const handleSendSignatureTest = async () => {
+    setSendingTest(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { error } = await supabase.functions.invoke("send-signature-test", {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error(error.message);
+      toast.success(`Testmail sendt til ${user?.email}`);
+    } catch (e) {
+      toast.error((e as Error).message ?? "Kunne ikke sende test");
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const handleClearSignature = useCallback(() => {
     setSignatureHtml("");
@@ -422,13 +440,23 @@ const SettingsPage = () => {
                 transformPaste={cleanOutlookHtml}
               />
               {currentSignature && (
-                <button
-                  type="button"
-                  onClick={handleClearSignature}
-                  className="mt-1 text-xs text-muted-foreground underline hover:text-foreground"
-                >
-                  {t("settings.signature.clear")}
-                </button>
+                <div className="mt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSendSignatureTest}
+                    disabled={sendingTest}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent disabled:opacity-50"
+                  >
+                    {sendingTest ? "Sender…" : `Send test til ${user?.email}`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearSignature}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    {t("settings.signature.clear")}
+                  </button>
+                </div>
               )}
               {plan === "free" && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -465,34 +493,6 @@ const SettingsPage = () => {
                 {t(toneKeys[tone])}
               </button>
             ))}
-          </div>
-        </div>
-
-        {/* Email Preview */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-heading text-base font-semibold text-foreground">{t("settings.preview.title")}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{t("settings.preview.desc")}</p>
-          <div className="mt-4 rounded-lg border border-border bg-accent/20 p-4" style={{ fontFamily: currentFont }}>
-            <p className="whitespace-pre-line text-sm text-foreground">
-              {t(`settings.preview.sampleBody.${currentTone}` as const).replace("{{name}}", "Sarah")}
-            </p>
-            {currentSignature && (
-              <>
-                <hr className="my-4 border-border" />
-                <div
-                  className="text-sm text-foreground overflow-x-auto [&_img]:max-w-full [&_table]:max-w-full"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentSignature, SIGNATURE_PURIFY_CONFIG) }}
-                />
-              </>
-            )}
-            {plan === "free" && (
-              <>
-                <hr className="my-4 border-border" />
-                <p className="text-xs text-muted-foreground">
-                  Want to know how this email was sent? Check out: <a href="https://sendsafe.pasture.zone" target="_blank" rel="noopener noreferrer" className="text-primary underline">sendsafe.pasture.zone</a>
-                </p>
-              </>
-            )}
           </div>
         </div>
 
