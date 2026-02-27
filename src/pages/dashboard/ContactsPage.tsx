@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Wand2 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
+import { useSentEmailCounts } from "@/hooks/use-emails";
 import {
   useContactGroups,
   useCreateContactGroup,
@@ -29,6 +30,7 @@ const ContactsPage = () => {
   const deleteGroup = useDeleteContactGroup();
   const { data: memberships = [] } = useGroupMemberships();
   const addToGroup = useAddToGroup();
+  const { data: sentCounts = new Map() } = useSentEmailCounts();
 
   const [tab, setTab] = useState<"file" | "manual">("file");
   const [manualRows, setManualRows] = useState<ManualRow[]>([emptyManualRow()]);
@@ -639,6 +641,11 @@ const ContactsPage = () => {
                           {getGroupsForContact(lead.id).map((g) => (
                             <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
                           ))}
+                          {(sentCounts.get(lead.id) ?? 0) > 0 && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                              Sent <span className="rounded-full bg-green-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{sentCounts.get(lead.id)}</span>
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{lead.industry || "—"}</td>

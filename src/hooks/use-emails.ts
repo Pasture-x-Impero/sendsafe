@@ -100,6 +100,30 @@ export function useDeleteEmail() {
   });
 }
 
+export function useSentEmailCounts() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["sent-email-counts"],
+    queryFn: async (): Promise<Map<string, number>> => {
+      if (!user) return new Map();
+      const { data, error } = await supabase
+        .from("emails")
+        .select("lead_id")
+        .eq("user_id", user.id)
+        .eq("status", "sent")
+        .not("lead_id", "is", null);
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      for (const row of data) {
+        if (row.lead_id) counts.set(row.lead_id, (counts.get(row.lead_id) ?? 0) + 1);
+      }
+      return counts;
+    },
+    enabled: !!user,
+  });
+}
+
 export function useUpdateEmail() {
   const queryClient = useQueryClient();
 
