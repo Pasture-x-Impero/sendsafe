@@ -90,6 +90,8 @@ const SettingsPage = () => {
     clean = clean.replace(/\s*style="\s*"/gi, "");
     // Remove empty spans
     clean = clean.replace(/<span[^>]*>\s*<\/span>/gi, "");
+    // Remove visible table/cell borders from Outlook (border="1", border="2", etc.)
+    clean = clean.replace(/(<(?:table|td|th|tr)[^>]*)\bborder=["']\d+["']/gi, "$1border=\"0\"");
     return DOMPurify.sanitize(clean, SIGNATURE_PURIFY_CONFIG);
   }, []);
 
