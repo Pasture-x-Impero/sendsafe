@@ -10,6 +10,7 @@ import { useEmailTemplates, useCreateEmailTemplate, useDeleteEmailTemplate } fro
 import { useSentEmailCounts } from "@/hooks/use-emails";
 import type { Email } from "@/types/database";
 import { toast } from "sonner";
+import RichEmailEditor from "@/components/RichEmailEditor";
 
 const tones = ["professional", "friendly", "direct"] as const;
 const toneKeys = {
@@ -34,6 +35,14 @@ const campaignLanguages = [
 ] as const;
 
 const steps = ["step1", "step2", "step3"] as const;
+
+const FIELD_MAP: Record<string, string> = {
+  contact_name: "contact_name",
+  company: "company",
+  domene: "domain",
+  industry: "industry",
+  contact_email: "contact_email",
+};
 
 const CreatePage = () => {
   const { t } = useLanguage();
@@ -91,12 +100,29 @@ const CreatePage = () => {
   };
   // Standard mode
   const [templateSubject, setTemplateSubject] = useState("");
-  const [templateBody, setTemplateBody] = useState("Hei,\n\n");
+  const [templateBody, setTemplateBody] = useState("<p>Hei,</p><p><br></p>");
+  const [templateKey, setTemplateKey] = useState(0);
 
   const uniqueIndustries = useMemo(() => {
     const industries = leads.map((l) => l.industry).filter((ind): ind is string => !!ind);
     return Array.from(new Set(industries)).sort();
   }, [leads]);
+
+  const missingFieldWarnings = useMemo(() => {
+    const vars = [...templateBody.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    if (!vars.length) return [];
+    const warnings: string[] = [];
+    for (const v of vars) {
+      const field = FIELD_MAP[v];
+      if (!field) continue;
+      const missing = Array.from(selectedIds).filter((id) => {
+        const lead = leads.find((l) => l.id === id);
+        return !lead?.[field as keyof typeof lead];
+      }).length;
+      if (missing > 0) warnings.push(`${missing} kontakt${missing > 1 ? "er" : ""} mangler {${v}}`);
+    }
+    return warnings;
+  }, [templateBody, selectedIds, leads]);
 
   const filteredLeads = useMemo(() => {
     let result = leads;
@@ -139,10 +165,11 @@ const CreatePage = () => {
     setSelectedIds(new Set());
   };
 
+  const bodyText = templateBody.replace(/<[^>]*>/g, "").trim();
   const canGenerate =
     campaignName.trim().length > 0 &&
     templateSubject.trim().length > 0 &&
-    templateBody.trim().length > 0;
+    bodyText.length > 0;
 
   const handleGenerate = async () => {
     try {
@@ -190,7 +217,9 @@ const CreatePage = () => {
 
   const loadTemplate = (tpl: (typeof templates)[0]) => {
     setTemplateSubject(tpl.subject);
-    setTemplateBody(tpl.body);
+    const body = tpl.body.includes("<") ? tpl.body : tpl.body.replace(/\n/g, "<br>");
+    setTemplateBody(body);
+    setTemplateKey((k) => k + 1);
     setCampaignLanguage(tpl.language);
     setStep(0);
     toast.success(t("create.tpl.loaded"));
@@ -559,14 +588,15 @@ const CreatePage = () => {
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-foreground">{t("create.templateBody")}</label>
             <p className="mb-2 text-xs text-muted-foreground">{t("create.hybridBodyTip")}</p>
-            <textarea
+            <RichEmailEditor
+              key={templateKey}
               value={templateBody}
-              onChange={(e) => setTemplateBody(e.target.value)}
-              rows={10}
-              className="w-full rounded-b-none rounded-t-lg border border-b-0 border-border bg-accent/30 px-4 py-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              onChange={setTemplateBody}
+              defaultFontFamily={profile?.font_family || "Arial"}
+              placeholder={t("create.hybridBodyTip")}
             />
             {profile?.email_signature && (
-              <div className="rounded-b-lg border border-border bg-accent/10 px-4 py-3">
+              <div className="rounded-b-lg border border-t-0 border-border bg-accent/10 px-4 py-3">
                 <div
                   className="text-sm text-muted-foreground [&_*]:max-w-full"
                   dangerouslySetInnerHTML={{ __html: profile.email_signature }}
@@ -574,6 +604,12 @@ const CreatePage = () => {
               </div>
             )}
           </div>
+
+          {missingFieldWarnings.length > 0 && (
+            <div className="mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-xs text-yellow-700 dark:text-yellow-400">
+              ⚠ {missingFieldWarnings.join(" · ")}
+            </div>
+          )}
 
           <div className="mt-6 flex items-center justify-between">
             <button
@@ -616,7 +652,10 @@ const CreatePage = () => {
                 <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t("review.body")}
                 </p>
-                <p className="whitespace-pre-line text-sm text-foreground line-clamp-4">{email.body}</p>
+                <div
+                  className="text-sm text-foreground [&_*]:max-w-full"
+                  dangerouslySetInnerHTML={{ __html: email.body }}
+                />
                 {profile?.email_signature && (
                   <div className="mt-3">
                     <div

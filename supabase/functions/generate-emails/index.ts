@@ -73,6 +73,28 @@ async function fillSlot(
   return result.choices?.[0]?.message?.content?.trim() ?? instruction;
 }
 
+// Substitute {field} variables from contact data before AI processing.
+// Unknown variables are left as-is. Missing values become empty string and are tracked.
+function substituteFields(
+  template: string,
+  contact: Record<string, unknown>
+): { result: string; missing: string[] } {
+  const map: Record<string, string | null> = {
+    contact_name: contact.contact_name as string | null,
+    company: contact.company as string | null,
+    domene: contact.domain as string | null,
+    industry: contact.industry as string | null,
+    contact_email: contact.contact_email as string | null,
+  };
+  const missing: string[] = [];
+  const result = template.replace(/\{(\w+)\}/g, (match, key) => {
+    if (!(key in map)) return match; // Unknown variable — leave as-is
+    if (!map[key]) { missing.push(key); return ""; }
+    return map[key]!;
+  });
+  return { result, missing };
+}
+
 // Replace every [...] slot in a template string.
 // Only slot contents are sent to AI; surrounding text is untouched.
 async function processTemplate(
@@ -208,14 +230,18 @@ Deno.serve(async (req) => {
         language: language || "no",
       };
 
-      let subject = template_subject;
-      let body = template_body;
+      const { result: subjectWithFields, missing: subjectMissing } = substituteFields(template_subject, contact);
+      const { result: bodyWithFields, missing: bodyMissing } = substituteFields(template_body, contact);
+      const allMissing = [...new Set([...subjectMissing, ...bodyMissing])];
+
+      let subject = subjectWithFields;
+      let body = bodyWithFields;
 
       try {
-        subject = await processTemplate(template_subject, context, groqKey);
-        body = await processTemplate(template_body, context, groqKey);
+        subject = await processTemplate(subjectWithFields, context, groqKey);
+        body = await processTemplate(bodyWithFields, context, groqKey);
       } catch {
-        // Fallback: keep template as-is for this contact
+        // Fallback: keep field-substituted template as-is for this contact
       }
 
       emailRows.push({
@@ -229,7 +255,7 @@ Deno.serve(async (req) => {
         confidence: 0,
         status: "draft",
         approved: false,
-        issues: [],
+        issues: allMissing.map((f) => `MISSING_FIELD:${f}`),
         suggestions: null,
         campaign_id,
         campaign_name,

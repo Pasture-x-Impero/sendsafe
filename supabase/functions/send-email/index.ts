@@ -119,7 +119,8 @@ Deno.serve(async (req) => {
 
     // Build email body, appending signature if present
     const fontFamily = profile.font_family || "Arial";
-    const bodyContent = email.body.replace(/\n/g, "<br>");
+    const isHtml = /<[a-z][\s\S]*>/i.test(email.body);
+    const bodyContent = isHtml ? email.body : email.body.replace(/\n/g, "<br>");
     let signatureHtml = "";
     let textBody = email.body;
 

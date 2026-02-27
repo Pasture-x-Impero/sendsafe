@@ -173,23 +173,11 @@ const ReviewPage = () => {
   };
 
   const handleBodyBlur = (email: Email, el: HTMLDivElement) => {
-    // Extract only the body part (before the signature divider)
-    const divider = el.querySelector("[data-signature-divider]");
-    let text: string;
-    if (divider) {
-      // Collect text nodes before the divider
-      const range = document.createRange();
-      range.setStartBefore(el.firstChild!);
-      range.setEndBefore(divider);
-      const fragment = range.cloneContents();
-      const temp = document.createElement("div");
-      temp.appendChild(fragment);
-      text = temp.innerText.trim();
-    } else {
-      text = el.innerText.trim();
-    }
-    if (text === email.body) return;
-    updateEmail.mutate({ id: email.id, body: text });
+    const temp = el.cloneNode(true) as HTMLDivElement;
+    temp.querySelector("[data-signature-divider]")?.remove();
+    const html = temp.innerHTML.trim();
+    if (html === email.body) return;
+    updateEmail.mutate({ id: email.id, body: html });
   };
 
   const groupKey = (g: CampaignGroup) => g.campaignId ?? "__ungrouped";
@@ -274,6 +262,17 @@ const ReviewPage = () => {
                             <div className="min-w-0">
                               <div className="truncate font-medium text-foreground">{email.contact_name}</div>
                               <div className="truncate text-xs text-muted-foreground">{email.contact_email}</div>
+                              {email.issues.filter((i) => i.startsWith("MISSING_FIELD:")).length > 0 && (
+                                <div className="mt-0.5">
+                                  <span className="rounded border border-yellow-500/30 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] text-yellow-700 dark:text-yellow-400">
+                                    ⚠{" "}
+                                    {email.issues
+                                      .filter((i) => i.startsWith("MISSING_FIELD:"))
+                                      .map((i) => `{${i.slice(14)}}`)
+                                      .join(", ")}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                             <div className="truncate text-muted-foreground">{email.subject}</div>
                             <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColors[email.status] || ""}`}>
@@ -313,6 +312,15 @@ const ReviewPage = () => {
                           {/* Expanded detail panel */}
                           {expandedId === email.id && (
                             <div className="border-t border-border bg-accent/10 px-6 py-5">
+                              {email.issues.filter((i) => i.startsWith("MISSING_FIELD:")).length > 0 && (
+                                <div className="mb-4 rounded border border-yellow-500/30 bg-yellow-500/10 px-3 py-1.5 text-xs text-yellow-700 dark:text-yellow-400">
+                                  ⚠ Mangler data:{" "}
+                                  {email.issues
+                                    .filter((i) => i.startsWith("MISSING_FIELD:"))
+                                    .map((i) => `{${i.slice(14)}}`)
+                                    .join(", ")}
+                                </div>
+                              )}
                               <div className="mb-4">
                                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("review.subject")}</label>
                                 <input
@@ -333,9 +341,9 @@ const ReviewPage = () => {
                                   className="min-h-[200px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre-wrap"
                                   dangerouslySetInnerHTML={{
                                     __html: DOMPurify.sanitize(
-                                      email.body.replace(/\n/g, "<br>") +
+                                      (/<[a-z][\s\S]*>/i.test(email.body) ? email.body : email.body.replace(/\n/g, "<br>")) +
                                       (profile?.email_signature
-                                        ? '<div data-signature-divider="true" contenteditable="false" style="pointer-events:none"><hr style="margin:12px 0;border-color:var(--border)">' + profile.email_signature + '</div>'
+                                        ? '<div data-signature-divider="true" contenteditable="false" style="pointer-events:none;margin-top:12px">' + profile.email_signature + '</div>'
                                         : "")
                                     , { ADD_ATTR: ["data-signature-divider"] }),
                                   }}
