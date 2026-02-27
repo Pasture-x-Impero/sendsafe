@@ -119,15 +119,24 @@ Deno.serve(async (req) => {
 
     const recipient = test_email || email.contact_email;
 
+    // Strip editor hint spans (variable badges and AI instruction badges) that
+    // have colored backgrounds — these are visual aids in the editor only and
+    // must not appear in the sent email.
+    const stripEditorSpans = (html: string): string =>
+      html
+        .replace(/<span[^>]*background:\s*#e0f2fe[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+        .replace(/<span[^>]*background:\s*#f3e8ff[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+
     // Build email body, appending signature if present
     const fontFamily = profile.font_family || "Arial";
     const isHtml = /<[a-z][\s\S]*>/i.test(email.body);
-    const bodyContent = isHtml ? email.body : email.body.replace(/\n/g, "<br>");
+    const rawBody = isHtml ? email.body : email.body.replace(/\n/g, "<br>");
+    const bodyContent = stripEditorSpans(rawBody);
     let signatureHtml = "";
-    let textBody = email.body;
+    let textBody = email.body.replace(/<[^>]*>/g, "");
 
     if (profile.email_signature) {
-      signatureHtml = "<br><br><hr>" + profile.email_signature;
+      signatureHtml = "<br><br>" + stripEditorSpans(profile.email_signature);
       const textSignature = profile.email_signature.replace(/<[^>]*>/g, "");
       textBody += "\n\n---\n" + textSignature;
     }
