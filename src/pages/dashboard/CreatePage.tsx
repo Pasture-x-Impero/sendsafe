@@ -7,6 +7,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 import { useEmailTemplates, useCreateEmailTemplate, useDeleteEmailTemplate } from "@/hooks/use-email-templates";
+import { useSentEmailCounts } from "@/hooks/use-emails";
 import type { Email } from "@/types/database";
 import { toast } from "sonner";
 
@@ -43,6 +44,7 @@ const CreatePage = () => {
   const { data: memberships = [] } = useGroupMemberships();
   const generateEmails = useGenerateEmails();
   const { data: templates = [] } = useEmailTemplates();
+  const { data: sentCounts = new Map() } = useSentEmailCounts();
   const createTemplate = useCreateEmailTemplate();
   const deleteTemplate = useDeleteEmailTemplate();
 
@@ -417,6 +419,11 @@ const CreatePage = () => {
                           ))}
                         {lead.industry && (
                           <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">{lead.industry}</span>
+                        )}
+                        {(sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) > 0 && (
+                          <span className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
+                            Sent <span className="rounded-full bg-green-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{sentCounts.get(lead.contact_email.toLowerCase())}</span>
+                          </span>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">{lead.contact_email}</span>
