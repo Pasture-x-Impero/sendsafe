@@ -646,54 +646,54 @@ const ContactsPage = () => {
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-border bg-accent/50">
-                <th className="w-9 px-3 py-2.5">
+                <th className="w-9 px-2 py-2">
                   <input type="checkbox" checked={selectedIds.size === sortedLeads.length && sortedLeads.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded border-border accent-primary" />
                 </th>
-                <th className="w-[18%] cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
+                <th className="w-[18%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
                   {t("contacts.col.company")}<SortIcon field="company" />
                 </th>
-                <th className="w-[20%] cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_email")}>
+                <th className="w-[20%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_email")}>
                   {t("contacts.col.email")}<SortIcon field="contact_email" />
                 </th>
-                <th className="w-[14%] cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_name")}>
+                <th className="w-[14%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_name")}>
                   {t("contacts.col.name")}<SortIcon field="contact_name" />
                 </th>
-                <th className="w-[13%] cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
+                <th className="w-[13%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
                   {t("contacts.col.domain")}<SortIcon field="domain" />
                 </th>
-                <th className="w-[16%] px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
-                <th className="w-[10%] cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
+                <th className="w-[16%] px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                <th className="w-[10%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
                   {t("contacts.col.industry")}<SortIcon field="industry" />
                 </th>
-                <th className="w-16 cursor-pointer select-none px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("employee_count")}>
-                  Ans.<SortIcon field="employee_count" />
+                <th className="w-16 cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("employee_count")}>
+                  Ansatte<SortIcon field="employee_count" />
                 </th>
-                <th className="w-16 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
+                <th className="w-16 px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
               {sortedLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2">
                     <input type="checkbox" checked={selectedIds.has(lead.id)} onChange={() => toggleSelect(lead.id)} className="h-4 w-4 rounded border-border accent-primary" />
                   </td>
                   {isEditing(lead.id) ? (
                     <>
-                      <td className="px-3 py-1.5"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
-                      <td className="px-3 py-1.5"><input value={editValues.contact_email} onChange={(e) => setEditValues((v) => ({ ...v, contact_email: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
-                      <td className="px-3 py-1.5"><input value={editValues.contact_name} onChange={(e) => setEditValues((v) => ({ ...v, contact_name: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
-                      <td className="px-3 py-1.5"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
-                      <td className="px-3 py-1.5">{/* groups not editable inline */}</td>
-                      <td className="px-3 py-1.5"><input value={editValues.industry} onChange={(e) => setEditValues((v) => ({ ...v, industry: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
-                      <td className="px-3 py-1.5"><input type="number" min="0" value={editValues.employee_count} onChange={(e) => setEditValues((v) => ({ ...v, employee_count: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-2 py-1.5"><input value={editValues.company} onChange={(e) => setEditValues((v) => ({ ...v, company: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" autoFocus /></td>
+                      <td className="px-2 py-1.5"><input value={editValues.contact_email} onChange={(e) => setEditValues((v) => ({ ...v, contact_email: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-2 py-1.5"><input value={editValues.contact_name} onChange={(e) => setEditValues((v) => ({ ...v, contact_name: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-2 py-1.5"><input value={editValues.domain} onChange={(e) => setEditValues((v) => ({ ...v, domain: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-2 py-1.5">{/* groups not editable inline */}</td>
+                      <td className="px-2 py-1.5"><input value={editValues.industry} onChange={(e) => setEditValues((v) => ({ ...v, industry: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
+                      <td className="px-2 py-1.5"><input type="number" min="0" value={editValues.employee_count} onChange={(e) => setEditValues((v) => ({ ...v, employee_count: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && commitEditRow()} className="w-full rounded border border-primary bg-card px-2 py-1 text-sm focus:outline-none" /></td>
                     </>
                   ) : (
                     <>
-                      <td className="px-3 py-2.5 text-sm"><span className="block truncate font-medium text-foreground" title={lead.company}>{lead.company}</span></td>
-                      <td className="px-3 py-2.5 text-sm"><span className="block truncate text-foreground" title={lead.contact_email}>{lead.contact_email}</span></td>
-                      <td className="px-3 py-2.5 text-sm"><span className="block truncate text-muted-foreground" title={lead.contact_name || ""}>{lead.contact_name || "—"}</span></td>
-                      <td className="px-3 py-2.5 text-sm"><span className="block truncate text-muted-foreground" title={lead.domain || ""}>{lead.domain || "—"}</span></td>
-                      <td className="px-3 py-2.5">
+                      <td className="px-2 py-2 text-sm"><span className="block truncate font-medium text-foreground" title={lead.company}>{lead.company}</span></td>
+                      <td className="px-2 py-2 text-sm"><span className="block truncate text-foreground" title={lead.contact_email}>{lead.contact_email}</span></td>
+                      <td className="px-2 py-2 text-sm"><span className="block truncate text-muted-foreground" title={lead.contact_name || ""}>{lead.contact_name || "—"}</span></td>
+                      <td className="px-2 py-2 text-sm"><span className="block truncate text-muted-foreground" title={lead.domain || ""}>{lead.domain || "—"}</span></td>
+                      <td className="px-2 py-2">
                         <div className="flex flex-wrap gap-1">
                           {getGroupsForContact(lead.id).map((g) => (
                             <span key={g.id} className="inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{g.name}</span>
@@ -705,11 +705,11 @@ const ContactsPage = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-sm"><span className="block truncate text-muted-foreground" title={lead.industry || ""}>{lead.industry || "—"}</span></td>
-                      <td className="px-3 py-2.5 text-sm text-muted-foreground">{lead.employee_count ?? "—"}</td>
+                      <td className="px-2 py-2 text-sm"><span className="block truncate text-muted-foreground" title={lead.industry || ""}>{lead.industry || "—"}</span></td>
+                      <td className="px-2 py-2 text-sm text-muted-foreground">{lead.employee_count ?? "—"}</td>
                     </>
                   )}
-                  <td className="px-3 py-2.5">
+                  <td className="px-2 py-2">
                     <div className="flex items-center gap-1">
                       {isEditing(lead.id) ? (
                         <>
