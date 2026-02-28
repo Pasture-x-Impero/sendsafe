@@ -73,9 +73,15 @@ const SettingsPage = () => {
       // Use raw fetch so we can always read the JSON error body
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const supabaseUrl = (supabase as any).supabaseUrl as string;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supabaseKey = (supabase as any).supabaseKey as string;
       const resp = await fetch(`${supabaseUrl}/functions/v1/send-signature-test`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": supabaseKey,
+          "Content-Type": "application/json",
+        },
       });
       const body = await resp.json();
       if (!resp.ok || body?.error) throw new Error(body?.error || `HTTP ${resp.status}`);
