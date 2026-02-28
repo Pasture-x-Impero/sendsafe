@@ -343,6 +343,9 @@ const ReviewPage = () => {
                                     ),
                                   }}
                                 />
+                                {profile?.email_signature && (
+                                  <p className="mt-1.5 text-center text-xs text-muted-foreground">— signatur sendes med i e-post —</p>
+                                )}
                               </div>
 
                               {/* Action buttons */}

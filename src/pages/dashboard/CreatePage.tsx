@@ -697,12 +697,7 @@ const CreatePage = () => {
               placeholder={t("create.hybridBodyTip")}
             />
             {profile?.email_signature && (
-              <div className="rounded-b-lg border border-t-0 border-border bg-accent/10 px-4 py-3">
-                <div
-                  className="text-sm text-muted-foreground [&_*]:max-w-full"
-                  dangerouslySetInnerHTML={{ __html: profile.email_signature }}
-                />
-              </div>
+              <p className="mt-1.5 text-center text-xs text-muted-foreground">— signatur sendes med i e-post —</p>
             )}
           </div>
 
