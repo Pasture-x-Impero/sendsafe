@@ -68,11 +68,18 @@ const SettingsPage = () => {
   const handleSendSignatureTest = async () => {
     setSendingTest(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await supabase.functions.invoke("send-signature-test", {
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (error) throw new Error(error.message);
+      const { data, error } = await supabase.functions.invoke("send-signature-test");
+      if (error) {
+        // Try to extract the real error message from the function response
+        let message = error.message;
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const body = await (error as any).context?.json?.();
+          if (body?.error) message = body.error;
+        } catch { /* ignore */ }
+        throw new Error(message);
+      }
+      if (data?.error) throw new Error(data.error);
       toast.success(`Testmail sendt til ${user?.email}`);
     } catch (e) {
       toast.error((e as Error).message ?? "Kunne ikke sende test");

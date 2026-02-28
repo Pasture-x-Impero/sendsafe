@@ -55,12 +55,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const recipientEmail = user.email;
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: "Could not determine your email address" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const isFree = profile.plan === "free";
     const senderEmail = isFree ? "noreply@pasture.cloud" : profile.smtp_sender_email;
     const senderName = isFree ? "SendSafe" : (profile.smtp_sender_name || "SendSafe");
 
     if (!isFree && !senderEmail) {
-      return new Response(JSON.stringify({ error: "Sender email not configured. Set your sender email in Settings." }), {
+      return new Response(JSON.stringify({ error: "Avsender-epost er ikke konfigurert. Sett den i Innstillinger." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -82,7 +90,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         api_key: smtpApiKey,
-        to: [user.email],
+        to: [recipientEmail],
         sender: `${senderName} <${senderEmail}>`,
         subject: "Signaturtest – SendSafe",
         html_body: htmlBody,
@@ -93,7 +101,8 @@ Deno.serve(async (req) => {
     const smtpResult = await smtpResponse.json();
 
     if (!smtpResponse.ok || smtpResult.data?.error) {
-      return new Response(JSON.stringify({ error: "SMTP2GO error", details: smtpResult }), {
+      const smtpError = smtpResult.data?.error || smtpResult.data?.failures?.[0] || "SMTP2GO error";
+      return new Response(JSON.stringify({ error: typeof smtpError === "string" ? smtpError : JSON.stringify(smtpError) }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
