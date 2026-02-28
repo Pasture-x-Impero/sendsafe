@@ -8,7 +8,7 @@ import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-group
 import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
 import { useEmailTemplates, useCreateEmailTemplate, useDeleteEmailTemplate } from "@/hooks/use-email-templates";
 import { useSentEmailCounts } from "@/hooks/use-emails";
-import { useCampaignDrafts, useUpdateCampaignDraft } from "@/hooks/use-campaign-drafts";
+import { useCampaignDrafts, useCreateCampaignDraft, useUpdateCampaignDraft } from "@/hooks/use-campaign-drafts";
 import type { Email } from "@/types/database";
 import { toast } from "sonner";
 import RichEmailEditor from "@/components/RichEmailEditor";
@@ -48,7 +48,7 @@ const FIELD_MAP: Record<string, string> = {
 const CreatePage = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const draftId = searchParams.get("draft");
   const { data: leads = [], isLoading } = useLeads();
   const { data: profile } = useProfile();
@@ -60,6 +60,7 @@ const CreatePage = () => {
   const createTemplate = useCreateEmailTemplate();
   const deleteTemplate = useDeleteEmailTemplate();
   const { data: drafts = [] } = useCampaignDrafts();
+  const createDraft = useCreateCampaignDraft();
   const updateDraft = useUpdateCampaignDraft();
 
   const [step, setStep] = useState(0);
@@ -253,6 +254,33 @@ const CreatePage = () => {
     } catch (e) {
       toast.error((e as Error).message ?? "Noe gikk galt. Prøv igjen.");
     }
+  };
+
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
+  const handleNextFromStep0 = async () => {
+    if (!draftId) {
+      setCreatingDraft(true);
+      try {
+        const draft = await createDraft.mutateAsync({
+          name: "Uten navn",
+          contact_ids: Array.from(selectedIds),
+          tone,
+          goal,
+          language: campaignLanguage,
+          template_subject: templateSubject,
+          template_body: templateBody,
+        });
+        draftInitialized.current = true;
+        setSearchParams({ draft: draft.id }, { replace: true });
+      } catch {
+        toast.error("Kunne ikke opprette kampanje");
+        return;
+      } finally {
+        setCreatingDraft(false);
+      }
+    }
+    setStep(1);
   };
 
   const firstContact = leads.find((l) => selectedIds.has(l.id)) ?? null;
@@ -507,11 +535,11 @@ const CreatePage = () => {
 
               <div className="mt-6 flex justify-end">
                 <button
-                  onClick={() => setStep(1)}
-                  disabled={selectedIds.size === 0}
+                  onClick={handleNextFromStep0}
+                  disabled={selectedIds.size === 0 || creatingDraft}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                 >
-                  {t("create.next")} <ArrowRight className="h-4 w-4" />
+                  {creatingDraft ? "Oppretter…" : t("create.next")} <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </>

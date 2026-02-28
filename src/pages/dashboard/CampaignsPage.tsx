@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, ArrowRight, Trash2 } from "lucide-react";
-import { useCampaignDrafts, useCreateCampaignDraft, useDeleteCampaignDraft } from "@/hooks/use-campaign-drafts";
-import { useProfile } from "@/hooks/use-profile";
+import { useCampaignDrafts, useDeleteCampaignDraft } from "@/hooks/use-campaign-drafts";
 import { toast } from "sonner";
 
 const toneLabels: Record<string, string> = {
@@ -21,26 +20,11 @@ const goalLabels: Record<string, string> = {
 const CampaignsPage = () => {
   const navigate = useNavigate();
   const { data: drafts = [], isLoading } = useCampaignDrafts();
-  const { data: profile } = useProfile();
-  const createDraft = useCreateCampaignDraft();
   const deleteDraft = useDeleteCampaignDraft();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const handleNewCampaign = async () => {
-    try {
-      const draft = await createDraft.mutateAsync({
-        name: "Uten navn",
-        contact_ids: [],
-        tone: profile?.tone ?? "professional",
-        goal: profile?.goal ?? "sales",
-        language: "no",
-        template_subject: "",
-        template_body: "<p>Hei,</p><p><br></p>",
-      });
-      navigate(`/dashboard/create?draft=${draft.id}`);
-    } catch {
-      toast.error("Kunne ikke opprette kampanje");
-    }
+  const handleNewCampaign = () => {
+    navigate("/dashboard/create");
   };
 
   const handleDelete = (id: string) => {
@@ -84,8 +68,7 @@ const CampaignsPage = () => {
           <p className="mt-1 text-xs text-muted-foreground">Trykk «Ny kampanje» for å komme i gang</p>
           <button
             onClick={handleNewCampaign}
-            disabled={createDraft.isPending}
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Plus className="h-4 w-4" />
             Ny kampanje
