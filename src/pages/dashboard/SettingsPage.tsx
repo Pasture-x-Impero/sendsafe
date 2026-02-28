@@ -3,7 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_ANON_KEY, SUPABASE_FUNCTIONS_URL } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import RichEmailEditor from "@/components/RichEmailEditor";
@@ -71,15 +71,11 @@ const SettingsPage = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Ikke innlogget");
       // Use raw fetch so we can always read the JSON error body
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supabaseUrl = (supabase as any).supabaseUrl as string;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const supabaseKey = (supabase as any).supabaseKey as string;
-      const resp = await fetch(`${supabaseUrl}/functions/v1/send-signature-test`, {
+      const resp = await fetch(`${SUPABASE_FUNCTIONS_URL}/send-signature-test`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${session.access_token}`,
-          "apikey": supabaseKey,
+          "apikey": SUPABASE_ANON_KEY,
           "Content-Type": "application/json",
         },
       });
