@@ -63,16 +63,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const isFree = profile.plan === "free";
-    const senderEmail = isFree ? "noreply@pasture.cloud" : profile.smtp_sender_email;
-    const senderName = isFree ? "SendSafe" : (profile.smtp_sender_name || "SendSafe");
-
-    if (!isFree && !senderEmail) {
-      return new Response(JSON.stringify({ error: "Avsender-epost er ikke konfigurert. Sett den i Innstillinger." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // For signature tests we always send from our own domain — the user just
+    // needs to see how the signature looks, not validate their sender domain.
+    const senderEmail = "noreply@pasture.cloud";
+    const senderName = "SendSafe";
 
     const fontFamily = profile.font_family || "Arial";
     const bodyContent = "<p>Hei! Dette er en test for å se hvordan signaturen din ser ut i en ekte e-post.</p>";
