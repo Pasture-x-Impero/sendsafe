@@ -68,18 +68,17 @@ const SettingsPage = () => {
   const handleSendSignatureTest = async () => {
     setSendingTest(true);
     try {
-      const { data, error } = await supabase.functions.invoke("send-signature-test");
-      if (error) {
-        // Try to extract the real error message from the function response
-        let message = error.message;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const body = await (error as any).context?.json?.();
-          if (body?.error) message = body.error;
-        } catch { /* ignore */ }
-        throw new Error(message);
-      }
-      if (data?.error) throw new Error(data.error);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Ikke innlogget");
+      // Use raw fetch so we can always read the JSON error body
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const supabaseUrl = (supabase as any).supabaseUrl as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/send-signature-test`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+      });
+      const body = await resp.json();
+      if (!resp.ok || body?.error) throw new Error(body?.error || `HTTP ${resp.status}`);
       toast.success(`Testmail sendt til ${user?.email}`);
     } catch (e) {
       toast.error((e as Error).message ?? "Kunne ikke sende test");

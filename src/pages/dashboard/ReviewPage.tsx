@@ -173,9 +173,7 @@ const ReviewPage = () => {
   };
 
   const handleBodyBlur = (email: Email, el: HTMLDivElement) => {
-    const temp = el.cloneNode(true) as HTMLDivElement;
-    temp.querySelector("[data-signature-divider]")?.remove();
-    const html = temp.innerHTML.trim();
+    const html = el.innerHTML.trim();
     if (html === email.body) return;
     updateEmail.mutate({ id: email.id, body: html });
   };
@@ -341,11 +339,8 @@ const ReviewPage = () => {
                                   className="min-h-[200px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre-wrap"
                                   dangerouslySetInnerHTML={{
                                     __html: DOMPurify.sanitize(
-                                      (/<[a-z][\s\S]*>/i.test(email.body) ? email.body : email.body.replace(/\n/g, "<br>")) +
-                                      (profile?.email_signature
-                                        ? '<div data-signature-divider="true" contenteditable="false" style="pointer-events:none;margin-top:12px">' + profile.email_signature + '</div>'
-                                        : "")
-                                    , { ADD_ATTR: ["data-signature-divider"] }),
+                                      /<[a-z][\s\S]*>/i.test(email.body) ? email.body : email.body.replace(/\n/g, "<br>")
+                                    ),
                                   }}
                                 />
                               </div>
