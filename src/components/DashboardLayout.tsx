@@ -1,4 +1,32 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { Component, type ReactNode } from "react";
+
+class PageErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <p className="font-semibold text-destructive">Noe gikk galt</p>
+          <p className="mt-1 text-sm text-muted-foreground">{this.state.error.message}</p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+          >
+            Prøv igjen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { Shield, Users, PenSquare, ShieldCheck, Send, Settings, CreditCard, LogOut } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,7 +102,9 @@ const DashboardLayout = () => {
       </aside>
 
       <main className="ml-60 flex-1 p-8">
-        <Outlet />
+        <PageErrorBoundary>
+          <Outlet />
+        </PageErrorBoundary>
       </main>
     </div>
   );
