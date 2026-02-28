@@ -121,6 +121,11 @@ const CreatePage = () => {
     }
   }, [draftId, drafts]);
 
+  // Standard mode — declared here so the auto-save useEffect below can reference them
+  const [templateSubject, setTemplateSubject] = useState("");
+  const [templateBody, setTemplateBody] = useState("<p>Hei,</p><p><br></p>");
+  const [templateKey, setTemplateKey] = useState(0);
+
   // Draft: auto-save on state changes (debounced)
   const selectedIdsStr = useMemo(() => Array.from(selectedIds).sort().join(","), [selectedIds]);
 
@@ -151,10 +156,6 @@ const CreatePage = () => {
   const toggleFilterIndustry = (ind: string) => {
     setFilterIndustries((prev) => { const next = new Set(prev); if (next.has(ind)) next.delete(ind); else next.add(ind); return next; });
   };
-  // Standard mode
-  const [templateSubject, setTemplateSubject] = useState("");
-  const [templateBody, setTemplateBody] = useState("<p>Hei,</p><p><br></p>");
-  const [templateKey, setTemplateKey] = useState(0);
 
   const uniqueIndustries = useMemo(() => {
     const industries = leads.map((l) => l.industry).filter((ind): ind is string => !!ind);
