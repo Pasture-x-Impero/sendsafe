@@ -69,7 +69,17 @@ const SettingsPage = () => {
     setSendingTest(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-signature-test");
-      if (error) throw new Error((error as any)?.message || "Kunne ikke sende test");
+      if (error) {
+        // FunctionsHttpError stores the Response in .context — read the JSON body for the real message
+        let msg = "Kunne ikke sende test";
+        try {
+          const body = await (error as any).context?.json();
+          msg = body?.error || body?.message || error.message || msg;
+        } catch {
+          msg = error.message || msg;
+        }
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
       toast.success(`Testmail sendt til ${user?.email}`);
     } catch (e) {
