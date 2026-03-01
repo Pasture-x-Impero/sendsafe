@@ -22,9 +22,8 @@ export function useGenerateEmails() {
     mutationFn: async ({ contactIds, campaignName, tone, goal, language, templateSubject, templateBody }: GenerateEmailsInput) => {
       const campaignId = crypto.randomUUID();
 
-      // Ensure the latest session token is set before invoking
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) supabase.functions.setAuth(session.access_token);
+      if (!session?.access_token) throw new Error("Not authenticated");
 
       const { data, error } = await supabase.functions.invoke("generate-emails", {
         body: {
@@ -37,6 +36,7 @@ export function useGenerateEmails() {
           goal: goal || "sales",
           language: language || "no",
         },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (error) {
