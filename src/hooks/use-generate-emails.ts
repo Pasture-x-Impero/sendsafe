@@ -46,7 +46,10 @@ export function useGenerateEmails() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? body.message ?? "Failed to generate emails");
+        const detail = body.debug_jwt_prefix
+          ? ` | jwt_len=${body.debug_jwt_len} jwt_prefix=${body.debug_jwt_prefix} anon_prefix=${body.debug_anon_prefix}`
+          : "";
+        throw new Error((body.error ?? body.message ?? "Failed to generate emails") + detail);
       }
 
       const data = await response.json();
