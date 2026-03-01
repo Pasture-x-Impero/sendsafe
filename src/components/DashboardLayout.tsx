@@ -1,6 +1,6 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Component, type ReactNode } from "react";
-import { NavigationGuardProvider, useNavigationGuard } from "@/contexts/NavigationGuardContext";
+import { interceptNavigate } from "@/lib/navigation-guard";
 
 class PageErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   constructor(props: { children: ReactNode }) {
@@ -45,7 +45,7 @@ const navItems = [
 
 const SidebarNav = () => {
   const { t } = useLanguage();
-  const { requestNavigate } = useNavigationGuard();
+  const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (to: string) => {
@@ -61,7 +61,7 @@ const SidebarNav = () => {
       {navItems.map((item) => (
         <button
           key={item.to}
-          onClick={() => requestNavigate(item.to)}
+          onClick={() => interceptNavigate(item.to, navigate)}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
             isActive(item.to)
               ? "bg-primary/10 text-primary"
@@ -81,7 +81,6 @@ const DashboardLayout = () => {
   const { user, signOut } = useAuth();
 
   return (
-    <NavigationGuardProvider>
     <div className="flex min-h-screen bg-background">
       <aside className="fixed left-0 top-0 z-40 flex h-full w-60 flex-col border-r border-border bg-card">
         <div className="flex h-16 items-center gap-2 border-b border-border px-5">
@@ -125,7 +124,6 @@ const DashboardLayout = () => {
         </PageErrorBoundary>
       </main>
     </div>
-    </NavigationGuardProvider>
   );
 };
 

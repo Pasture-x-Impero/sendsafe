@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useNavigationGuard } from "@/contexts/NavigationGuardContext";
+import { setNavigationGuard } from "@/lib/navigation-guard";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
@@ -284,16 +284,15 @@ const CreatePage = () => {
   };
 
   // Register guard with sidebar so clicking any nav item also triggers the prompt
-  const { setGuard } = useNavigationGuard();
   const handleNavigateAwayRef = useRef(handleNavigateAway);
   handleNavigateAwayRef.current = handleNavigateAway;
   useEffect(() => {
     if (shouldPromptOnLeave) {
-      setGuard((to) => handleNavigateAwayRef.current(to));
+      setNavigationGuard((to) => handleNavigateAwayRef.current(to));
     } else {
-      setGuard(null);
+      setNavigationGuard(null);
     }
-    return () => setGuard(null);
+    return () => setNavigationGuard(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldPromptOnLeave]);
 
