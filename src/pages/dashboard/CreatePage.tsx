@@ -208,8 +208,14 @@ const CreatePage = () => {
         return true;
       });
     }
+    // Selected contacts first, then the rest in their natural order
+    result = [...result].sort((a, b) => {
+      const aSelected = selectedIds.has(a.id) ? 0 : 1;
+      const bSelected = selectedIds.has(b.id) ? 0 : 1;
+      return aSelected - bSelected;
+    });
     return result;
-  }, [leads, filterGroupIds, filterIndustries, search, memberships, empMin, empMax]);
+  }, [leads, filterGroupIds, filterIndustries, search, memberships, empMin, empMax, selectedIds]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {

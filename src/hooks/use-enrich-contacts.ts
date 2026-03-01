@@ -14,6 +14,8 @@ export function useEnrichContacts() {
 
   return useMutation({
     mutationFn: async (contactIds: string[]): Promise<{ results: EnrichResult[]; credits_used: number }> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) supabase.functions.setAuth(session.access_token);
       const { data, error } = await supabase.functions.invoke("enrich-contacts", {
         body: { contact_ids: contactIds },
       });

@@ -101,6 +101,11 @@ function substituteFields(
   const result = template.replace(/\{(\w+)\}/g, (match, key) => {
     if (!(key in map)) return match; // Unknown variable — leave as-is
     if (!map[key]) { missing.push(key); return ""; }
+    if (key === "domene") {
+      const domain = map[key]!;
+      const href = domain.startsWith("http") ? domain : `https://${domain}`;
+      return `<a href="${href}">${domain}</a>`;
+    }
     return map[key]!;
   });
   return { result, missing };
