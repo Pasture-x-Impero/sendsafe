@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigationGuard } from "@/contexts/NavigationGuardContext";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
@@ -281,6 +282,20 @@ const CreatePage = () => {
       navigate(to);
     }
   };
+
+  // Register guard with sidebar so clicking any nav item also triggers the prompt
+  const { setGuard } = useNavigationGuard();
+  const handleNavigateAwayRef = useRef(handleNavigateAway);
+  handleNavigateAwayRef.current = handleNavigateAway;
+  useEffect(() => {
+    if (isUnsaved) {
+      setGuard((to) => handleNavigateAwayRef.current(to));
+    } else {
+      setGuard(null);
+    }
+    return () => setGuard(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUnsaved]);
 
   // Auto-create draft when campaign name is first entered (lazy creation)
   const draftCreateCalled = useRef(false);

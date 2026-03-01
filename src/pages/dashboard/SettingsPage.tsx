@@ -68,14 +68,10 @@ const SettingsPage = () => {
   const handleSendSignatureTest = async () => {
     setSendingTest(true);
     try {
-      // Ensure functions client has the current user token before invoking
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Ikke innlogget");
-      supabase.functions.setAuth(session.access_token);
-
-      const { data, error } = await supabase.functions.invoke("send-signature-test");
+      const { data, error } = await supabase.functions.invoke("send-signature-test", {
+        body: {},
+      });
       if (error) {
-        // FunctionsHttpError stores the Response in .context — read the JSON body for the real message
         let msg = "Kunne ikke sende test";
         try {
           const body = await (error as any).context?.json();
