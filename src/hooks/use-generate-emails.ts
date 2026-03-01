@@ -46,10 +46,13 @@ export function useGenerateEmails() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        const detail = body.debug_jwt_prefix
-          ? ` | jwt_len=${body.debug_jwt_len} jwt_prefix=${body.debug_jwt_prefix} anon_prefix=${body.debug_anon_prefix}`
-          : "";
-        throw new Error((body.error ?? body.message ?? "Failed to generate emails") + detail);
+        const msg: string = body.error ?? body.message ?? "Failed to generate emails";
+        // Gateway-level auth failure — session is stale, force re-login
+        if (response.status === 401 && (msg.includes("JWT") || msg.includes("jwt"))) {
+          await supabase.auth.signOut();
+          window.location.href = "/";
+        }
+        throw new Error(msg);
       }
 
       const data = await response.json();

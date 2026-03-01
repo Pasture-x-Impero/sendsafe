@@ -167,14 +167,7 @@ Deno.serve(async (req) => {
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
-    if (userError || !user) {
-      return new Response(JSON.stringify({
-        error: userError?.message ?? "no user",
-        debug_jwt_len: jwt.length,
-        debug_jwt_prefix: jwt.substring(0, 40),
-        debug_anon_prefix: (Deno.env.get("SUPABASE_ANON_KEY") ?? "").substring(0, 40),
-      }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    if (userError || !user) return err(`Unauthorized: ${userError?.message ?? "no user"}`, 401);
 
     const {
       contact_ids,
