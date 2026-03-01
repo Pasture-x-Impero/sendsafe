@@ -71,7 +71,7 @@ export function useSendEmail() {
 
   return useMutation({
     mutationFn: async ({ emailId, testEmail }: { emailId: string; testEmail?: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.refreshSession();
       if (!session?.access_token) throw new Error("Not authenticated");
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: { email_id: emailId, test_email: testEmail },

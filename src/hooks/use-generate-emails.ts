@@ -22,7 +22,7 @@ export function useGenerateEmails() {
     mutationFn: async ({ contactIds, campaignName, tone, goal, language, templateSubject, templateBody }: GenerateEmailsInput) => {
       const campaignId = crypto.randomUUID();
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.refreshSession();
       if (!session?.access_token) throw new Error("Not authenticated");
 
       const { data, error } = await supabase.functions.invoke("generate-emails", {
