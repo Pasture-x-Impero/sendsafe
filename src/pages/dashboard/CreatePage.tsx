@@ -826,40 +826,40 @@ const CreatePage = () => {
       {/* Step 3: Preview drafts */}
       {step === 2 && (
         <div className="rounded-xl border border-border bg-card p-6">
-          <p className="mb-5 text-sm text-muted-foreground">{t("create.previewDesc")}</p>
+          <p className="mb-5 text-sm text-muted-foreground">
+            {t("create.previewDesc")}
+            {generatedEmails.length > 1 && (
+              <span className="ml-1 text-muted-foreground">
+                — viser utkast for {generatedEmails[0]?.contact_name || generatedEmails[0]?.contact_email} ({generatedEmails.length} totalt)
+              </span>
+            )}
+          </p>
 
-          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
-            {generatedEmails.map((email) => (
-              <div key={email.id} className="rounded-lg border border-border bg-background p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-semibold text-foreground">{email.contact_name || email.contact_email}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{email.company}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{email.contact_email}</span>
+          {generatedEmails[0] && (
+            <div className="rounded-lg border border-border bg-background p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-semibold text-foreground">{generatedEmails[0].contact_name || generatedEmails[0].contact_email}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{generatedEmails[0].company}</span>
                 </div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t("review.subject")}
-                </p>
-                <p className="mb-3 text-sm font-medium text-foreground">{email.subject}</p>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t("review.body")}
-                </p>
-                <div
-                  className="text-sm text-foreground [&_*]:max-w-full"
-                  dangerouslySetInnerHTML={{ __html: email.body }}
-                />
-                {profile?.email_signature && (
-                  <div className="mt-3">
-                    <div
-                      className="text-sm text-muted-foreground [&_*]:max-w-full"
-                      dangerouslySetInnerHTML={{ __html: profile.email_signature }}
-                    />
-                  </div>
-                )}
+                <span className="text-xs text-muted-foreground">{generatedEmails[0].contact_email}</span>
               </div>
-            ))}
-          </div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t("review.subject")}
+              </p>
+              <p className="mb-3 text-sm font-medium text-foreground">{generatedEmails[0].subject}</p>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t("review.body")}
+              </p>
+              <div
+                className="text-sm text-foreground [&_*]:max-w-full"
+                dangerouslySetInnerHTML={{ __html: generatedEmails[0].body }}
+              />
+              {profile?.email_signature && (
+                <p className="mt-3 text-center text-xs text-muted-foreground">— signatur sendes med i e-post —</p>
+              )}
+            </div>
+          )}
 
           <div className="mt-6 flex items-center justify-between">
             <button
