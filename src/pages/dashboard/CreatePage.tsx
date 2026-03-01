@@ -257,24 +257,24 @@ const CreatePage = () => {
     }
   };
 
-  // True when user has made progress but hasn't saved yet (no draftId)
-  const isUnsaved = step >= 1 && selectedIds.size > 0 && !draftId;
+  // Show leave prompt whenever the user is on step 1+ with contacts selected
+  const shouldPromptOnLeave = step >= 1 && selectedIds.size > 0;
 
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveNameInput, setLeaveNameInput] = useState("");
   const [savingOnLeave, setSavingOnLeave] = useState(false);
   const pendingNavigateRef = useRef<string | null>(null);
 
-  // Warn on browser close / hard navigation while unsaved
+  // Warn on browser close / hard navigation while in flow
   useEffect(() => {
-    if (!isUnsaved) return;
+    if (!shouldPromptOnLeave) return;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [isUnsaved]);
+  }, [shouldPromptOnLeave]);
 
   const handleNavigateAway = (to: string) => {
-    if (isUnsaved) {
+    if (shouldPromptOnLeave) {
       pendingNavigateRef.current = to;
       setLeaveNameInput(campaignName);
       setShowLeaveModal(true);
@@ -288,14 +288,14 @@ const CreatePage = () => {
   const handleNavigateAwayRef = useRef(handleNavigateAway);
   handleNavigateAwayRef.current = handleNavigateAway;
   useEffect(() => {
-    if (isUnsaved) {
+    if (shouldPromptOnLeave) {
       setGuard((to) => handleNavigateAwayRef.current(to));
     } else {
       setGuard(null);
     }
     return () => setGuard(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUnsaved]);
+  }, [shouldPromptOnLeave]);
 
   // Auto-create draft when campaign name is first entered (lazy creation)
   const draftCreateCalled = useRef(false);
@@ -882,40 +882,67 @@ const CreatePage = () => {
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl">
-            <h2 className="mb-1 text-base font-bold text-foreground">Lagre kampanje?</h2>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Vil du lagre denne kampanjen før du forlater? Gi den et navn for å lagre.
-            </p>
-            <input
-              type="text"
-              value={leaveNameInput}
-              onChange={(e) => setLeaveNameInput(e.target.value)}
-              placeholder="Kampanjenavn"
-              autoFocus
-              className="mb-4 w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              onKeyDown={(e) => e.key === "Enter" && handleSaveOnLeave()}
-            />
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleSaveOnLeave}
-                disabled={!leaveNameInput.trim() || savingOnLeave}
-                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-              >
-                {savingOnLeave ? "Lagrer…" : "Lagre og forlat"}
-              </button>
-              <button
-                onClick={handleDiscardAndLeave}
-                className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-              >
-                Forkast og forlat
-              </button>
-              <button
-                onClick={() => setShowLeaveModal(false)}
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Avbryt
-              </button>
-            </div>
+            {draftId ? (
+              // Draft already saved — just confirm leaving
+              <>
+                <h2 className="mb-1 text-base font-bold text-foreground">Forlate kampanje?</h2>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Kampanjen er lagret og du kan fortsette den fra Kampanjer.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleDiscardAndLeave}
+                    className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    Forlat
+                  </button>
+                  <button
+                    onClick={() => setShowLeaveModal(false)}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              </>
+            ) : (
+              // No draft yet — prompt to name and save or discard
+              <>
+                <h2 className="mb-1 text-base font-bold text-foreground">Lagre kampanje?</h2>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Vil du lagre denne kampanjen før du forlater? Gi den et navn for å lagre.
+                </p>
+                <input
+                  type="text"
+                  value={leaveNameInput}
+                  onChange={(e) => setLeaveNameInput(e.target.value)}
+                  placeholder="Kampanjenavn"
+                  autoFocus
+                  className="mb-4 w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveOnLeave()}
+                />
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={handleSaveOnLeave}
+                    disabled={!leaveNameInput.trim() || savingOnLeave}
+                    className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {savingOnLeave ? "Lagrer…" : "Lagre og forlat"}
+                  </button>
+                  <button
+                    onClick={handleDiscardAndLeave}
+                    className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+                  >
+                    Forkast og forlat
+                  </button>
+                  <button
+                    onClick={() => setShowLeaveModal(false)}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
