@@ -21,8 +21,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 
 // Keep the functions client in sync with the current session token.
 // By default, functions.invoke uses the anon key unless setAuth is called.
-// The built-in listener only fires on SIGNED_IN / TOKEN_REFRESHED, not
-// INITIAL_SESSION (restored from localStorage), so we sync it here.
+// onAuthStateChange fires for SIGNED_IN / TOKEN_REFRESHED but NOT for
+// INITIAL_SESSION (restored from localStorage), so we also sync on load.
+supabase.auth.getSession().then(({ data: { session } }) => {
+  if (session?.access_token) {
+    supabase.functions.setAuth(session.access_token);
+  }
+});
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session?.access_token) {
     supabase.functions.setAuth(session.access_token);
