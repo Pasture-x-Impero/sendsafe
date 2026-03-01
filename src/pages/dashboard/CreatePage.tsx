@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams, useBlocker } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
@@ -256,19 +256,31 @@ const CreatePage = () => {
     }
   };
 
-  // Block navigation when user has made progress but hasn't saved yet (no draftId)
-  const shouldBlock = step >= 1 && selectedIds.size > 0 && !draftId;
-  const blocker = useBlocker(shouldBlock);
+  // True when user has made progress but hasn't saved yet (no draftId)
+  const isUnsaved = step >= 1 && selectedIds.size > 0 && !draftId;
 
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaveNameInput, setLeaveNameInput] = useState("");
   const [savingOnLeave, setSavingOnLeave] = useState(false);
+  const pendingNavigateRef = useRef<string | null>(null);
 
-  // Pre-fill leave modal with current campaign name when blocker fires
+  // Warn on browser close / hard navigation while unsaved
   useEffect(() => {
-    if (blocker.state === "blocked") {
+    if (!isUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isUnsaved]);
+
+  const handleNavigateAway = (to: string) => {
+    if (isUnsaved) {
+      pendingNavigateRef.current = to;
       setLeaveNameInput(campaignName);
+      setShowLeaveModal(true);
+    } else {
+      navigate(to);
     }
-  }, [blocker.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   // Auto-create draft when campaign name is first entered (lazy creation)
   const draftCreateCalled = useRef(false);
@@ -306,11 +318,17 @@ const CreatePage = () => {
         template_subject: templateSubject,
         template_body: templateBody,
       });
-      blocker.proceed?.();
+      setShowLeaveModal(false);
+      navigate(pendingNavigateRef.current ?? "/dashboard/campaigns");
     } catch {
       toast.error("Kunne ikke lagre kampanje");
       setSavingOnLeave(false);
     }
+  };
+
+  const handleDiscardAndLeave = () => {
+    setShowLeaveModal(false);
+    navigate(pendingNavigateRef.current ?? "/dashboard/campaigns");
   };
 
   const handleNextFromStep0 = () => {
@@ -369,9 +387,9 @@ const CreatePage = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between">
           <div>
-            {draftId && (
+            {(draftId || step >= 1) && (
               <button
-                onClick={() => navigate("/dashboard/campaigns")}
+                onClick={() => handleNavigateAway("/dashboard/campaigns")}
                 className="mb-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <ArrowLeft className="h-3 w-3" /> Tilbake til kampanjer
@@ -846,7 +864,7 @@ const CreatePage = () => {
         </div>
       )}
       {/* Leave without saving — prompt */}
-      {blocker.state === "blocked" && (
+      {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl">
             <h2 className="mb-1 text-base font-bold text-foreground">Lagre kampanje?</h2>
@@ -871,13 +889,13 @@ const CreatePage = () => {
                 {savingOnLeave ? "Lagrer…" : "Lagre og forlat"}
               </button>
               <button
-                onClick={() => blocker.proceed?.()}
+                onClick={handleDiscardAndLeave}
                 className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               >
                 Forkast og forlat
               </button>
               <button
-                onClick={() => blocker.reset?.()}
+                onClick={() => setShowLeaveModal(false)}
                 className="text-sm text-muted-foreground hover:text-foreground"
               >
                 Avbryt
