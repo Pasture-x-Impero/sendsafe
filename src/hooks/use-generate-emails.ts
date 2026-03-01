@@ -29,8 +29,9 @@ export function useGenerateEmails() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
           "apikey": SUPABASE_ANON_KEY,
+          "x-user-token": session.access_token,
         },
         body: JSON.stringify({
           contact_ids: contactIds,
@@ -46,13 +47,7 @@ export function useGenerateEmails() {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        const msg: string = body.error ?? body.message ?? "Failed to generate emails";
-        // Gateway-level auth failure — session is stale, force re-login
-        if (response.status === 401 && (msg.includes("JWT") || msg.includes("jwt"))) {
-          await supabase.auth.signOut();
-          window.location.href = "/";
-        }
-        throw new Error(msg);
+        throw new Error(body.error ?? body.message ?? "Failed to generate emails");
       }
 
       const data = await response.json();

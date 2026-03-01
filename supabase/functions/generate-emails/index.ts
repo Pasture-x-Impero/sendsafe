@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-user-token",
 };
 
 const PLAN_AI_LIMITS: Record<string, number> = { free: 0, starter: 100, pro: 500 };
@@ -155,18 +155,19 @@ Deno.serve(async (req) => {
     const groqKey = Deno.env.get("GROQ_API_KEY");
     if (!groqKey) return err("Groq API key not configured", 500);
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return err("Missing authorization", 401);
-
-    const jwt = authHeader.replace("Bearer ", "");
+    // Accept user JWT from X-User-Token (bypasses gateway JWT validation)
+    // or fall back to Authorization header for backward compat.
+    const userToken = req.headers.get("X-User-Token")
+      ?? req.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!userToken) return err("Missing authorization", 401);
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: `Bearer ${userToken}` } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(jwt);
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) return err(`Unauthorized: ${userError?.message ?? "no user"}`, 401);
 
     const {
