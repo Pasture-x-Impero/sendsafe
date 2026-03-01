@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 import type { Email } from "@/types/database";
 
 export type CreateMode = "hybrid";
@@ -25,8 +25,14 @@ export function useGenerateEmails() {
       const { data: { session } } = await supabase.auth.refreshSession();
       if (!session?.access_token) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase.functions.invoke("generate-emails", {
-        body: {
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/generate-emails`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
           contact_ids: contactIds,
           campaign_name: campaignName,
           campaign_id: campaignId,
@@ -35,24 +41,15 @@ export function useGenerateEmails() {
           tone: tone || "professional",
           goal: goal || "sales",
           language: language || "no",
-        },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        }),
       });
 
-      if (error) {
-        let message = "Failed to generate emails";
-        try {
-          const ctx = error.context as Response;
-          if (ctx && typeof ctx.json === "function") {
-            const body = await ctx.json();
-            message = body.error ?? body.message ?? message;
-          } else if (error.message && error.message !== "Edge Function returned a non-2xx status code") {
-            message = error.message;
-          }
-        } catch { /* use default message */ }
-        throw new Error(message);
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? body.message ?? "Failed to generate emails");
       }
 
+      const data = await response.json();
       if (data?.error) throw new Error(data.error);
 
       return data.emails as Email[];
