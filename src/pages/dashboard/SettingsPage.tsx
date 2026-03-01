@@ -3,7 +3,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useProfile, useUpdateProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSenderDomain, useAddSenderDomain, useVerifySenderDomain } from "@/hooks/use-sender-domain";
-import { supabase, SUPABASE_ANON_KEY, SUPABASE_FUNCTIONS_URL } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import RichEmailEditor from "@/components/RichEmailEditor";
@@ -68,19 +68,9 @@ const SettingsPage = () => {
   const handleSendSignatureTest = async () => {
     setSendingTest(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Ikke innlogget");
-      // Use raw fetch so we can always read the JSON error body
-      const resp = await fetch(`${SUPABASE_FUNCTIONS_URL}/send-signature-test`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`,
-          "apikey": SUPABASE_ANON_KEY,
-          "Content-Type": "application/json",
-        },
-      });
-      const body = await resp.json();
-      if (!resp.ok || body?.error) throw new Error(body?.error || `HTTP ${resp.status}`);
+      const { data, error } = await supabase.functions.invoke("send-signature-test");
+      if (error) throw new Error((error as any)?.message || "Kunne ikke sende test");
+      if (data?.error) throw new Error(data.error);
       toast.success(`Testmail sendt til ${user?.email}`);
     } catch (e) {
       toast.error((e as Error).message ?? "Kunne ikke sende test");
