@@ -127,10 +127,25 @@ Deno.serve(async (req) => {
         .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#e0f2fe|rgb\(\s*224\s*,\s*242\s*,\s*254\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1")
         .replace(/<span\b[^>]*background(?:-color)?:\s*(?:#f3e8ff|rgb\(\s*243\s*,\s*232\s*,\s*255\s*\))[^>]*>([\s\S]*?)<\/span>/gi, "$1");
 
+    // Normalise HTML body for email clients:
+    // - Remove empty paragraphs (<p><br></p>, <p>&nbsp;</p>) that cause double-spacing
+    // - Add explicit margin to <p> so Outlook doesn't add extra space
+    const normalizeForEmail = (html: string): string =>
+      html
+        .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s*)<\/p>/gi, "")
+        .replace(/<p(\s[^>]*)?>/gi, (_, attrs) => {
+          const a = attrs || "";
+          const styleMatch = a.match(/style="([^"]*)"/i);
+          if (styleMatch) {
+            return `<p${a.replace(/style="([^"]*)"/i, 'style="margin:0 0 0.8em 0;$1"')}>`;
+          }
+          return `<p style="margin:0 0 0.8em 0;"${a}>`;
+        });
+
     // Build email body, appending signature if present
     const fontFamily = profile.font_family || "Arial";
     const isHtml = /<[a-z][\s\S]*>/i.test(email.body);
-    const rawBody = isHtml ? email.body : email.body.replace(/\n/g, "<br>");
+    const rawBody = isHtml ? normalizeForEmail(email.body) : email.body.replace(/\n/g, "<br>");
     const bodyContent = stripEditorSpans(rawBody);
     let signatureHtml = "";
     let textBody = email.body.replace(/<[^>]*>/g, "");

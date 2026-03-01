@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -63,7 +64,16 @@ const SentPage = () => {
                   {expandedId === email.id && (
                     <tr key={email.id + "-body"}>
                       <td colSpan={5} className="border-b border-border bg-accent/20 px-6 py-4">
-                        <p className="whitespace-pre-wrap text-sm text-foreground">{email.body}</p>
+                        <div
+                          className="text-sm text-foreground [&_*]:max-w-full"
+                          dangerouslySetInnerHTML={{
+                            __html: DOMPurify.sanitize(
+                              /<[a-z][\s\S]*>/i.test(email.body)
+                                ? email.body
+                                : email.body.replace(/\n/g, "<br>")
+                            ),
+                          }}
+                        />
                       </td>
                     </tr>
                   )}
