@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useBlocker } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
@@ -256,30 +256,64 @@ const CreatePage = () => {
     }
   };
 
-  const [creatingDraft, setCreatingDraft] = useState(false);
+  // Block navigation when user has made progress but hasn't saved yet (no draftId)
+  const shouldBlock = step >= 1 && selectedIds.size > 0 && !draftId;
+  const blocker = useBlocker(shouldBlock);
 
-  const handleNextFromStep0 = async () => {
-    if (!draftId) {
-      setCreatingDraft(true);
-      try {
-        const draft = await createDraft.mutateAsync({
-          name: "Uten navn",
-          contact_ids: Array.from(selectedIds),
-          tone,
-          goal,
-          language: campaignLanguage,
-          template_subject: templateSubject,
-          template_body: templateBody,
-        });
-        draftInitialized.current = true;
-        setSearchParams({ draft: draft.id }, { replace: true });
-      } catch {
-        toast.error("Kunne ikke opprette kampanje");
-        return;
-      } finally {
-        setCreatingDraft(false);
-      }
+  const [leaveNameInput, setLeaveNameInput] = useState("");
+  const [savingOnLeave, setSavingOnLeave] = useState(false);
+
+  // Pre-fill leave modal with current campaign name when blocker fires
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      setLeaveNameInput(campaignName);
     }
+  }, [blocker.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-create draft when campaign name is first entered (lazy creation)
+  const draftCreateCalled = useRef(false);
+  useEffect(() => {
+    if (draftId || draftCreateCalled.current || step < 1 || !campaignName.trim()) return;
+    draftCreateCalled.current = true;
+    const ids = Array.from(selectedIds);
+    createDraft.mutateAsync({
+      name: campaignName.trim(),
+      contact_ids: ids,
+      tone,
+      goal,
+      language: campaignLanguage,
+      template_subject: templateSubject,
+      template_body: templateBody,
+    }).then((draft) => {
+      draftInitialized.current = true;
+      setSearchParams({ draft: draft.id }, { replace: true });
+    }).catch(() => {
+      draftCreateCalled.current = false;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId, step, campaignName]);
+
+  const handleSaveOnLeave = async () => {
+    if (!leaveNameInput.trim()) return;
+    setSavingOnLeave(true);
+    try {
+      await createDraft.mutateAsync({
+        name: leaveNameInput.trim(),
+        contact_ids: Array.from(selectedIds),
+        tone,
+        goal,
+        language: campaignLanguage,
+        template_subject: templateSubject,
+        template_body: templateBody,
+      });
+      blocker.proceed?.();
+    } catch {
+      toast.error("Kunne ikke lagre kampanje");
+      setSavingOnLeave(false);
+    }
+  };
+
+  const handleNextFromStep0 = () => {
     setStep(1);
   };
 
@@ -536,10 +570,10 @@ const CreatePage = () => {
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={handleNextFromStep0}
-                  disabled={selectedIds.size === 0 || creatingDraft}
+                  disabled={selectedIds.size === 0}
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                 >
-                  {creatingDraft ? "Oppretter…" : t("create.next")} <ArrowRight className="h-4 w-4" />
+                  {t("create.next")} <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </>
@@ -808,6 +842,47 @@ const CreatePage = () => {
             >
               {t("create.goToReview")} <ArrowRight className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+      {/* Leave without saving — prompt */}
+      {blocker.state === "blocked" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h2 className="mb-1 text-base font-bold text-foreground">Lagre kampanje?</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Vil du lagre denne kampanjen før du forlater? Gi den et navn for å lagre.
+            </p>
+            <input
+              type="text"
+              value={leaveNameInput}
+              onChange={(e) => setLeaveNameInput(e.target.value)}
+              placeholder="Kampanjenavn"
+              autoFocus
+              className="mb-4 w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              onKeyDown={(e) => e.key === "Enter" && handleSaveOnLeave()}
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleSaveOnLeave}
+                disabled={!leaveNameInput.trim() || savingOnLeave}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                {savingOnLeave ? "Lagrer…" : "Lagre og forlat"}
+              </button>
+              <button
+                onClick={() => blocker.proceed?.()}
+                className="w-full rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                Forkast og forlat
+              </button>
+              <button
+                onClick={() => blocker.reset?.()}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Avbryt
+              </button>
+            </div>
           </div>
         </div>
       )}
