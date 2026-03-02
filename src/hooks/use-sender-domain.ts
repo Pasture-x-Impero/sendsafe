@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 import type { SenderDomain } from "@/types/database";
 
 async function callSenderDomain(action: string, domain: string) {
@@ -7,19 +7,19 @@ async function callSenderDomain(action: string, domain: string) {
   const { data: { session } } = await supabase.auth.refreshSession();
   if (!session?.access_token) throw new Error("Not authenticated");
 
-  const res = await supabase.functions.invoke("sender-domain", {
-    body: { action, domain },
-    headers: { Authorization: `Bearer ${session.access_token}` },
+  const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/sender-domain`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      "apikey": SUPABASE_ANON_KEY,
+      "x-user-token": session.access_token,
+    },
+    body: JSON.stringify({ action, domain }),
   });
-
-  if (res.error) {
-    // Try to extract the error message from the response body
-    const errorBody = typeof res.data === "object" && res.data?.error
-      ? res.data.error
-      : res.error.message;
-    throw new Error(errorBody);
-  }
-  return res.data;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error ?? data?.message ?? "Request failed");
+  return data;
 }
 
 function parseDomainResponse(data: unknown): SenderDomain | null {

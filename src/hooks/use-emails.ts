@@ -77,8 +77,9 @@ export function useSendEmail() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
           "apikey": SUPABASE_ANON_KEY,
+          "x-user-token": session.access_token,
         },
         body: JSON.stringify({ email_id: emailId, test_email: testEmail }),
       });
