@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Email } from "@/types/database";
 
@@ -73,14 +73,17 @@ export function useSendEmail() {
     mutationFn: async ({ emailId, testEmail }: { emailId: string; testEmail?: string }) => {
       const { data: { session } } = await supabase.auth.refreshSession();
       if (!session?.access_token) throw new Error("Not authenticated");
-      const { data, error } = await supabase.functions.invoke("send-email", {
-        body: { email_id: emailId, test_email: testEmail },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const response = await fetch(`${SUPABASE_FUNCTIONS_URL}/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+          "apikey": SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ email_id: emailId, test_email: testEmail }),
       });
-      if (error) {
-        const body = await (error as any).context?.json?.().catch(() => null);
-        throw new Error(body?.error ?? error.message ?? "Sending failed");
-      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error ?? data?.message ?? "Failed to send email");
       if (data?.error) throw new Error(data.error);
       return data;
     },
