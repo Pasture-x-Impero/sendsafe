@@ -17,6 +17,7 @@ type SortField = "domain" | "company" | "contact_email" | "contact_name" | "indu
 type SortDir = "asc" | "desc";
 type PendingRow = { domain: string | null; company: string; contact_email: string; contact_name: string | null; industry: string | null; comment: string | null; employee_count: number | null; groupNames: string[] };
 type ManualRow = { company: string; contact_email: string; contact_name: string; domain: string; industry: string; employee_count: string; groupId: string };
+type ConflictItem = { incoming: PendingRow; existing: Lead };
 const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", employee_count: "", groupId: "" });
 
 const ContactsPage = () => {
@@ -52,6 +53,8 @@ const ContactsPage = () => {
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [importStats, setImportStats] = useState<{ imported: number; skipped: number } | null>(null);
   const [pendingRows, setPendingRows] = useState<PendingRow[] | null>(null);
+  const [conflictData, setConflictData] = useState<{ newRows: PendingRow[]; conflicts: ConflictItem[]; duplicateCount: number } | null>(null);
+  const [conflictResolutions, setConflictResolutions] = useState<Record<number, "overwrite" | "skip">>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Unique industries for filter
@@ -159,6 +162,7 @@ const ContactsPage = () => {
 
   const isEmail = (v: string | null | undefined) => !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
   const isDomain = (v: string | null | undefined) => !!v && /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(v.trim()) && !v!.includes("@") && !v!.includes(" ");
+  const domainFromEmail = (email: string): string | null => email.includes("@") ? (email.split("@")[1] || null) : null;
 
   const fixColumns = async () => {
     const ids = Array.from(selectedIds);
@@ -194,6 +198,12 @@ const ContactsPage = () => {
         }
       }
 
+      // Auto-fill domain from email if still missing
+      if (!domain && contact_email && isEmail(contact_email)) {
+        const derived = domainFromEmail(contact_email);
+        if (derived) { updates.domain = derived; domain = derived; }
+      }
+
       if (Object.keys(updates).length > 0) {
         await updateLead.mutateAsync({ id: lead.id, ...updates });
         fixedCount++;
@@ -215,31 +225,69 @@ const ContactsPage = () => {
     return inner.split(/[,;]/).map((g) => g.trim()).filter(Boolean);
   };
 
-  // Confirm and run the pending file import
-  const confirmImport = async () => {
-    if (!pendingRows) return;
+  // Execute import: insert new rows + update overwritten conflicts
+  const executeImport = async (newRows: PendingRow[], overwrite: ConflictItem[], duplicateCount: number) => {
     try {
-      const toImport = pendingRows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, employee_count: r.employee_count, status: "imported" as const }));
-      const result = await importLeads.mutateAsync(toImport);
-      // Build a local group cache seeded from current groups to avoid duplicates
       const groupCache = new Map(groups.map((g) => [g.name.toLowerCase(), g]));
-      for (let i = 0; i < result.length; i++) {
-        for (const name of pendingRows[i].groupNames) {
-          const key = name.toLowerCase();
-          let group = groupCache.get(key);
-          if (!group) {
-            const created = await createGroup.mutateAsync(name);
-            groupCache.set(key, created);
-            group = created;
+      let importedCount = 0;
+
+      if (newRows.length > 0) {
+        const toInsert = newRows.map((r) => ({ domain: r.domain, company: r.company, contact_email: r.contact_email, contact_name: r.contact_name, industry: r.industry, comment: r.comment, employee_count: r.employee_count, status: "imported" as const }));
+        const result = await importLeads.mutateAsync(toInsert);
+        importedCount += result.length;
+        for (let i = 0; i < result.length; i++) {
+          for (const name of newRows[i].groupNames) {
+            const key = name.toLowerCase();
+            let group = groupCache.get(key);
+            if (!group) { const created = await createGroup.mutateAsync(name); groupCache.set(key, created); group = created; }
+            if (group) await addToGroup.mutateAsync({ contactIds: [result[i].id], groupId: group.id });
           }
-          if (group) await addToGroup.mutateAsync({ contactIds: [result[i].id], groupId: group.id });
         }
       }
-      setImportStats({ imported: result.length, skipped: pendingRows.length - result.length });
+
+      for (const { incoming, existing } of overwrite) {
+        await updateLead.mutateAsync({ id: existing.id, company: incoming.company, contact_name: incoming.contact_name, domain: incoming.domain, industry: incoming.industry, employee_count: incoming.employee_count, comment: incoming.comment });
+        importedCount++;
+      }
+
+      setImportStats({ imported: importedCount, skipped: duplicateCount });
       setPendingRows(null);
+      setConflictData(null);
+      setConflictResolutions({});
       if (tab === "manual") setManualRows([emptyManualRow()]);
+      if (duplicateCount > 0) toast.info(`${duplicateCount} duplikat${duplicateCount > 1 ? "er" : ""} hoppet over`);
     } catch {
-      toast.error("Failed to import contacts");
+      toast.error("Kunne ikke importere kontakter");
+    }
+  };
+
+  // Analyse pending rows against existing contacts, then import or show conflict modal
+  const analyseImport = async () => {
+    if (!pendingRows) return;
+    const byEmail = new Map(leads.map((l) => [l.contact_email.toLowerCase(), l]));
+    const newRows: PendingRow[] = [];
+    const conflicts: ConflictItem[] = [];
+    let duplicateCount = 0;
+
+    for (const row of pendingRows) {
+      const existing = byEmail.get(row.contact_email.toLowerCase());
+      if (!existing) { newRows.push(row); continue; }
+      const differs =
+        (row.contact_name ?? null) !== (existing.contact_name ?? null) ||
+        (row.company ?? "") !== (existing.company ?? "") ||
+        (row.domain ?? null) !== (existing.domain ?? null) ||
+        (row.industry ?? null) !== (existing.industry ?? null) ||
+        (row.employee_count ?? null) !== (existing.employee_count ?? null) ||
+        (row.comment ?? null) !== (existing.comment ?? null);
+      if (differs) conflicts.push({ incoming: row, existing });
+      else duplicateCount++;
+    }
+
+    if (conflicts.length === 0) {
+      await executeImport(newRows, [], duplicateCount);
+    } else {
+      setConflictResolutions(Object.fromEntries(conflicts.map((_, i) => [i, "overwrite" as const])));
+      setConflictData({ newRows, conflicts, duplicateCount });
     }
   };
 
@@ -297,7 +345,9 @@ const ContactsPage = () => {
           if (cols[emailIdx]) {
             const raw = groupsIdx !== -1 ? cols[groupsIdx] || null : null;
             const empRaw = employeeIdx !== -1 ? parseInt(cols[employeeIdx]) : NaN;
-            rows.push({ domain: domainIdx !== -1 ? cols[domainIdx] || null : null, company: cols[companyIdx] || "", contact_email: cols[emailIdx], contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
+            const parsedEmail = cols[emailIdx];
+            const parsedDomain = (domainIdx !== -1 ? cols[domainIdx] || null : null) || domainFromEmail(parsedEmail);
+            rows.push({ domain: parsedDomain, company: cols[companyIdx] || "", contact_email: parsedEmail, contact_name: nameIdx !== -1 ? cols[nameIdx] || null : null, industry: industryIdx !== -1 ? cols[industryIdx] || null : null, comment: commentIdx !== -1 ? cols[commentIdx] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
           }
         }
       } else if (ext === "xlsx" || ext === "xls") {
@@ -319,7 +369,9 @@ const ContactsPage = () => {
           if (companyKey && emailKey && row[emailKey]) {
             const raw = groupsKey ? row[groupsKey] || null : null;
             const empRaw = employeeKey ? parseInt(String(row[employeeKey])) : NaN;
-            rows.push({ domain: domainKey ? row[domainKey] || null : null, company: row[companyKey] || "", contact_email: row[emailKey], contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
+            const parsedEmail = String(row[emailKey]);
+            const parsedDomain = (domainKey ? row[domainKey] || null : null) || domainFromEmail(parsedEmail);
+            rows.push({ domain: parsedDomain, company: row[companyKey] || "", contact_email: parsedEmail, contact_name: nameKey ? row[nameKey] || null : null, industry: industryKey ? row[industryKey] || null : null, comment: commentKey ? row[commentKey] || null : null, employee_count: isNaN(empRaw) ? null : empRaw, groupNames: parseGroups(raw) });
           }
         }
       } else { toast.error("Unsupported file type. Use .csv, .xlsx, or .xls"); return; }
@@ -342,7 +394,8 @@ const ContactsPage = () => {
     const rows: PendingRow[] = valid.map((r) => {
       const group = groups.find((g) => g.id === r.groupId);
       const empParsed = r.employee_count.trim() ? parseInt(r.employee_count.trim()) : null;
-      return { domain: r.domain.trim() || null, company: r.company.trim(), contact_email: r.contact_email.trim(), contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, employee_count: isNaN(empParsed!) ? null : empParsed, groupNames: group ? [group.name] : [] };
+      const trimmedEmail = r.contact_email.trim();
+      return { domain: r.domain.trim() || domainFromEmail(trimmedEmail) || null, company: r.company.trim(), contact_email: trimmedEmail, contact_name: r.contact_name.trim() || null, industry: r.industry.trim() || null, comment: null, employee_count: isNaN(empParsed!) ? null : empParsed, groupNames: group ? [group.name] : [] };
     });
     setPendingRows(rows);
     setImportStats(null);
@@ -399,8 +452,103 @@ const ContactsPage = () => {
           <button onClick={() => setTab("manual")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${tab === "manual" ? "bg-primary text-primary-foreground" : "bg-accent text-foreground hover:bg-accent/80"}`}>{t("contacts.tabManual")}</button>
         </div>
 
+        {/* Conflict resolution panel */}
+        {conflictData && (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Konflikter funnet</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{conflictData.newRows.length}</span> nye ·{" "}
+                  <span className="font-medium text-foreground">{conflictData.conflicts.length}</span> konflikter ·{" "}
+                  <span className="font-medium text-foreground">{conflictData.duplicateCount}</span> duplikater hoppet over
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConflictResolutions(Object.fromEntries(conflictData.conflicts.map((_, i) => [i, "overwrite" as const])))}
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  Overskriv alle
+                </button>
+                <button
+                  onClick={() => setConflictResolutions(Object.fromEntries(conflictData.conflicts.map((_, i) => [i, "skip" as const])))}
+                  className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                >
+                  Hopp over alle
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-3 max-h-80 overflow-y-auto rounded-xl border border-border">
+              {conflictData.conflicts.map((conflict, i) => {
+                const { incoming, existing } = conflict;
+                const fieldLabels: { key: keyof typeof incoming; label: string }[] = [
+                  { key: "contact_name", label: "Navn" },
+                  { key: "company", label: "Selskap" },
+                  { key: "domain", label: "Domene" },
+                  { key: "industry", label: "Bransje" },
+                  { key: "employee_count", label: "Ansatte" },
+                  { key: "comment", label: "Kommentar" },
+                ];
+                const diffFields = fieldLabels.filter(({ key }) => {
+                  const a = (incoming[key] ?? null) as string | number | null;
+                  const b = (existing[key as keyof typeof existing] ?? null) as string | number | null;
+                  return String(a ?? "") !== String(b ?? "");
+                });
+                return (
+                  <div key={i} className="border-b border-border px-4 py-3 last:border-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground">{incoming.contact_email}</p>
+                        <div className="mt-1 space-y-0.5">
+                          {diffFields.map(({ key, label }) => (
+                            <p key={key} className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">{label}:</span>{" "}
+                              <span className="line-through opacity-60">{String(existing[key as keyof typeof existing] ?? "—")}</span>
+                              {" → "}
+                              <span>{String(incoming[key] ?? "—")}</span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <select
+                        value={conflictResolutions[i] ?? "overwrite"}
+                        onChange={(e) => setConflictResolutions((r) => ({ ...r, [i]: e.target.value as "overwrite" | "skip" }))}
+                        className="rounded-lg border border-border bg-card px-2 py-1.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+                      >
+                        <option value="overwrite">Overskriv</option>
+                        <option value="skip">Hopp over</option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                onClick={() => { setConflictData(null); setConflictResolutions({}); setPendingRows(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent"
+              >
+                {t("contacts.cancelImport")}
+              </button>
+              <button
+                onClick={() => {
+                  const overwrite = conflictData.conflicts.filter((_, i) => (conflictResolutions[i] ?? "overwrite") === "overwrite");
+                  executeImport(conflictData.newRows, overwrite, conflictData.duplicateCount);
+                }}
+                disabled={importLeads.isPending || updateLead.isPending}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+              >
+                {importLeads.isPending || updateLead.isPending ? "…" : "Bekreft"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Shared preview for both file and manual tabs */}
-        {pendingRows && (
+        {pendingRows && !conflictData && (
           <div>
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -409,7 +557,7 @@ const ContactsPage = () => {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => { setPendingRows(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent">{t("contacts.cancelImport")}</button>
-                <button onClick={confirmImport} disabled={importLeads.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{importLeads.isPending ? "…" : `${t("contacts.confirmImport")} ${pendingRows.length}`}</button>
+                <button onClick={analyseImport} disabled={importLeads.isPending} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40">{importLeads.isPending ? "…" : `${t("contacts.confirmImport")} ${pendingRows.length}`}</button>
               </div>
             </div>
             <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
@@ -451,7 +599,7 @@ const ContactsPage = () => {
           </div>
         )}
 
-        {tab === "file" && !pendingRows && (
+        {tab === "file" && !pendingRows && !conflictData && (
           <div onDragOver={(e) => e.preventDefault()} onDrop={handleDrop} className="flex flex-col items-center rounded-xl border-2 border-dashed border-border bg-accent/30 px-6 py-12 text-center transition-colors hover:border-primary/30">
             <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">{t("contacts.dragDrop")}</p>
