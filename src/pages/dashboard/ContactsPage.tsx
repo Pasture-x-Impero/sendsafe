@@ -20,6 +20,8 @@ type ManualRow = { company: string; contact_email: string; contact_name: string;
 type ConflictItem = { incoming: PendingRow; existing: Lead };
 const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", employee_count: "", groupId: "" });
 
+const SENT_GROUP_ID = "__sent__";
+
 const ContactsPage = () => {
   const { t } = useLanguage();
   const { data: leads = [], isLoading } = useLeads();
@@ -84,8 +86,12 @@ const ContactsPage = () => {
   // Filter
   const filtered = useMemo(() => {
     let result = leads;
-    if (filterGroupIds.size > 0) {
-      result = result.filter((lead) => memberships.some((m) => m.contact_id === lead.id && filterGroupIds.has(m.group_id)));
+    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID));
+    if (realGroupIds.size > 0) {
+      result = result.filter((lead) => memberships.some((m) => m.contact_id === lead.id && realGroupIds.has(m.group_id)));
+    }
+    if (filterGroupIds.has(SENT_GROUP_ID)) {
+      result = result.filter((lead) => (sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) > 0);
     }
     if (filterIndustries.size > 0) {
       result = result.filter((lead) => lead.industry != null && filterIndustries.has(lead.industry));
@@ -102,7 +108,7 @@ const ContactsPage = () => {
       });
     }
     return result;
-  }, [leads, filterGroupIds, filterIndustries, memberships, empMin, empMax]);
+  }, [leads, filterGroupIds, filterIndustries, memberships, empMin, empMax, sentCounts]);
 
   // Sort
   const sortedLeads = useMemo(() => {
@@ -659,7 +665,7 @@ const ContactsPage = () => {
       {/* Toolbar: filters, groups, export */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {/* Group checkbox filter */}
-        {groups.length > 0 && (
+        {(groups.length > 0 || sentCounts.size > 0) && (
           <div ref={groupFilterRef} className="relative">
             <button onClick={() => { setShowGroupFilter((v) => !v); setShowIndustryFilter(false); }} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterGroupIds.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}>
               {t("contacts.col.groups")}
@@ -668,13 +674,21 @@ const ContactsPage = () => {
             </button>
             {showGroupFilter && (
               <div className="absolute left-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                {sentCounts.size > 0 && (
+                  <div className="mb-1 border-b border-border pb-1">
+                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                      <input type="checkbox" checked={filterGroupIds.has(SENT_GROUP_ID)} onChange={() => toggleFilterGroup(SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
+                      <span className="font-medium text-green-700 dark:text-green-400">Sent</span>
+                    </label>
+                  </div>
+                )}
                 {groups.map((g) => (
                   <div key={g.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
                     <label className="flex flex-1 cursor-pointer items-center gap-2">
                       <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
                       {g.name}
                     </label>
-                    <button onClick={() => { deleteGroup.mutate(g.id); setFilterGroupIds((prev) => { const next = new Set(prev); next.delete(g.id); return next; }); }} className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 [div:hover>&]:opacity-100" title={t("contacts.deleteGroup")}>
+                    <button onClick={() => { deleteGroup.mutate(g.id); setFilterGroupIds((prev) => { const next = new Set(prev); next.delete(g.id); return next; }); }} className="rounded p-0.5 text-muted-foreground hover:text-destructive transition-colors" title={t("contacts.deleteGroup")}>
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>

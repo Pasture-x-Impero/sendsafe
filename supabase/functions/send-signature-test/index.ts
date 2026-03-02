@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
     const senderEmail = "noreply@pasture.cloud";
     const senderName = "SendSafe";
 
-    const fontFamily = profile.font_family || "Arial";
+    const rawFont = profile.font_family || "Aptos";
+    const fontFamily = rawFont === "Arial" ? "Aptos" : rawFont;
     const bodyContent = "<p>Hei! Dette er en test for å se hvordan signaturen din ser ut i en ekte e-post.</p>";
 
     let signatureHtml = "";
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
       signatureHtml = "<br><br>" + profile.email_signature;
     }
 
-    const htmlBody = `<div style="font-family:${fontFamily},sans-serif;">${bodyContent}${signatureHtml}</div>`;
+    const htmlBody = `<div style="font-family:${fontFamily},Calibri,Arial,sans-serif;font-size:12pt;line-height:1.5;">${bodyContent}${signatureHtml}</div>`;
     const textBody = "Hei! Dette er en test for å se hvordan signaturen din ser ut i en ekte e-post.";
 
     const smtpResponse = await fetch("https://api.smtp2go.com/v3/email/send", {

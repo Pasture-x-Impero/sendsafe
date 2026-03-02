@@ -136,13 +136,15 @@ Deno.serve(async (req) => {
           const a = attrs || "";
           const styleMatch = a.match(/style="([^"]*)"/i);
           if (styleMatch) {
-            return `<p${a.replace(/style="([^"]*)"/i, 'style="margin:0 0 0.8em 0;$1"')}>`;
+            return `<p${a.replace(/style="([^"]*)"/i, 'style="margin:0 0 1em 0;$1"')}>`;
           }
-          return `<p style="margin:0 0 0.8em 0;"${a}>`;
+          return `<p style="margin:0 0 1em 0;"${a}>`;
         });
 
     // Build email body, appending signature if present
-    const fontFamily = profile.font_family || "Arial";
+    // Treat old 'Arial' default as 'Aptos' so existing users get the new default
+    const rawFont = profile.font_family || "Aptos";
+    const fontFamily = rawFont === "Arial" ? "Aptos" : rawFont;
     const isHtml = /<[a-z][\s\S]*>/i.test(email.body);
     const rawBody = isHtml ? normalizeForEmail(email.body) : email.body.replace(/\n/g, "<br>");
     const bodyContent = stripEditorSpans(rawBody);
@@ -155,7 +157,7 @@ Deno.serve(async (req) => {
       textBody += "\n\n---\n" + textSignature;
     }
 
-    let htmlBody = `<div style="font-family:${fontFamily},sans-serif;">${bodyContent}${signatureHtml}</div>`;
+    let htmlBody = `<div style="font-family:${fontFamily},Calibri,Arial,sans-serif;font-size:12pt;line-height:1.5;">${bodyContent}${signatureHtml}</div>`;
 
     // Free plan: append SendSafe promo line
     if (isFree) {

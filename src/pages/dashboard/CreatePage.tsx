@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { setNavigationGuard } from "@/lib/navigation-guard";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
@@ -37,6 +37,8 @@ const campaignLanguages = [
 ] as const;
 
 const steps = ["step1", "step2", "step3"] as const;
+
+const SENT_GROUP_ID = "__sent__";
 
 const FIELD_MAP: Record<string, string> = {
   contact_name: "contact_name",
@@ -78,6 +80,8 @@ const CreatePage = () => {
   const [showIndustryFilter, setShowIndustryFilter] = useState(false);
   const groupFilterRef = useRef<HTMLDivElement>(null);
   const industryFilterRef = useRef<HTMLDivElement>(null);
+  const contactListRef = useRef<HTMLDivElement>(null);
+  const savedScrollRef = useRef<number>(0);
   const [search, setSearch] = useState("");
   const [campaignName, setCampaignName] = useState("");
   const [tone, setTone] = useState<string>(profile?.tone || "professional");
@@ -182,8 +186,12 @@ const CreatePage = () => {
 
   const filteredLeads = useMemo(() => {
     let result = leads;
-    if (filterGroupIds.size > 0) {
-      result = result.filter((l) => memberships.some((m) => m.contact_id === l.id && filterGroupIds.has(m.group_id)));
+    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID));
+    if (realGroupIds.size > 0) {
+      result = result.filter((l) => memberships.some((m) => m.contact_id === l.id && realGroupIds.has(m.group_id)));
+    }
+    if (filterGroupIds.has(SENT_GROUP_ID)) {
+      result = result.filter((l) => (sentCounts.get(l.contact_email.toLowerCase()) ?? 0) > 0);
     }
     if (filterIndustries.size > 0) {
       result = result.filter((l) => l.industry != null && filterIndustries.has(l.industry));
@@ -215,9 +223,10 @@ const CreatePage = () => {
       return aSelected - bSelected;
     });
     return result;
-  }, [leads, filterGroupIds, filterIndustries, search, memberships, empMin, empMax, selectedIds]);
+  }, [leads, filterGroupIds, filterIndustries, search, memberships, empMin, empMax, selectedIds, sentCounts]);
 
   const toggleSelect = (id: string) => {
+    if (contactListRef.current) savedScrollRef.current = contactListRef.current.scrollTop;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -225,6 +234,12 @@ const CreatePage = () => {
       return next;
     });
   };
+
+  useLayoutEffect(() => {
+    if (contactListRef.current) {
+      contactListRef.current.scrollTop = savedScrollRef.current;
+    }
+  }, [filteredLeads]);
 
   const addAllFiltered = () => {
     setSelectedIds((prev) => {
@@ -461,7 +476,7 @@ const CreatePage = () => {
               {/* Filters row */}
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 {/* Group multi-select dropdown */}
-                {groups.length > 0 && (
+                {(groups.length > 0 || sentCounts.size > 0) && (
                   <div ref={groupFilterRef} className="relative">
                     <button
                       onClick={() => { setShowGroupFilter((v) => !v); setShowIndustryFilter(false); }}
@@ -473,6 +488,14 @@ const CreatePage = () => {
                     </button>
                     {showGroupFilter && (
                       <div className="absolute left-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-border bg-card p-2 shadow-lg">
+                        {sentCounts.size > 0 && (
+                          <div className="mb-1 border-b border-border pb-1">
+                            <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                              <input type="checkbox" checked={filterGroupIds.has(SENT_GROUP_ID)} onChange={() => toggleFilterGroup(SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
+                              <span className="font-medium text-green-700 dark:text-green-400">Sent</span>
+                            </label>
+                          </div>
+                        )}
                         {groups.map((g) => (
                           <label key={g.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
                             <input type="checkbox" checked={filterGroupIds.has(g.id)} onChange={() => toggleFilterGroup(g.id)} className="h-4 w-4 rounded border-border accent-primary" />
@@ -558,7 +581,7 @@ const CreatePage = () => {
                 </div>
               </div>
 
-              <div className="max-h-80 space-y-1 overflow-y-auto">
+              <div ref={contactListRef} className="max-h-80 space-y-1 overflow-y-auto">
                 {filteredLeads.length === 0 ? (
                   <div className="py-8 text-center text-sm text-muted-foreground">
                     {t("create.noContacts")}

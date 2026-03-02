@@ -5,6 +5,7 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
 import { useEmails, useApproveEmail, useApproveAllEmails, useSendEmail, useUpdateEmail, useDeleteEmail } from "@/hooks/use-emails";
+import { useSenderDomain } from "@/hooks/use-sender-domain";
 import { toast } from "sonner";
 import type { Email } from "@/types/database";
 
@@ -38,6 +39,8 @@ const ReviewPage = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const hasSmtp = !!profile?.smtp_sender_email;
+  const isFree = profile?.plan === "free";
+  const { data: domainInfo } = useSenderDomain(profile?.smtp_sender_email);
 
   // Group emails by campaign_id
   const campaignGroups = useMemo<CampaignGroup[]>(() => {
@@ -187,6 +190,13 @@ const ReviewPage = () => {
         <p className="mt-1 text-sm text-muted-foreground">{t("review.desc")}</p>
       </div>
 
+      {!isFree && domainInfo && (!domainInfo.dkim_verified || !domainInfo.rpath_verified) && (
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-300">
+          <span>⚠ Ditt avsenderdomene er ikke bekreftet. E-poster kan vises som uverifiserte i mottakerens innboks.</span>
+          <a href="/dashboard/settings" className="ml-auto shrink-0 font-medium underline">Verifiser domenet →</a>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -259,7 +269,9 @@ const ReviewPage = () => {
                           >
                             <div className="min-w-0">
                               <div className="truncate font-medium text-foreground">{email.contact_name}</div>
-                              <div className="truncate text-xs text-muted-foreground">{email.contact_email}</div>
+                              <div className="truncate text-xs text-muted-foreground">
+                                {email.company ? `${email.company} | ` : ""}{email.contact_email}
+                              </div>
                               {email.issues.filter((i) => i.startsWith("MISSING_FIELD:")).length > 0 && (
                                 <div className="mt-0.5">
                                   <span className="rounded border border-yellow-500/30 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] text-yellow-700 dark:text-yellow-400">
