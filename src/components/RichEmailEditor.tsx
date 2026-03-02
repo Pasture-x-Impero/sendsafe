@@ -277,6 +277,23 @@ const RichEmailEditor = ({
           U
         </button>
 
+        {/* Bullet list */}
+        <button
+          onMouseDown={(e) => { e.preventDefault(); execCmd("insertUnorderedList"); }}
+          className="rounded px-2 py-0.5 text-sm text-foreground hover:bg-accent"
+          title="Punktliste"
+        >
+          •≡
+        </button>
+        {/* Numbered list */}
+        <button
+          onMouseDown={(e) => { e.preventDefault(); execCmd("insertOrderedList"); }}
+          className="rounded px-2 py-0.5 text-sm text-foreground hover:bg-accent"
+          title="Nummerert liste"
+        >
+          1≡
+        </button>
+
         <div className="mx-1 h-4 w-px bg-border" />
 
         {/* Link */}
@@ -379,7 +396,7 @@ const RichEmailEditor = ({
         onKeyUp={saveSelection}
         data-placeholder={placeholder}
         style={{ fontFamily: defaultFontFamily, fontSize: "14px", minHeight }}
-        className="w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-400"
+        className="w-full bg-accent/30 px-4 py-3 text-sm text-foreground focus:outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_a]:text-blue-600 [&_a]:underline dark:[&_a]:text-blue-400 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
       />
     </div>
   );

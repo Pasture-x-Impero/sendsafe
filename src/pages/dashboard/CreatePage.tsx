@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useLayoutEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import DOMPurify from "dompurify";
 import { setNavigationGuard } from "@/lib/navigation-guard";
 import { ArrowLeft, ArrowRight, Search, Sparkles, ChevronDown, Info } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
@@ -38,6 +39,7 @@ const campaignLanguages = [
 const steps = ["step1", "step2", "step3"] as const;
 
 const SENT_GROUP_ID = "__sent__";
+const NOT_SENT_GROUP_ID = "__not_sent__";
 
 const FIELD_MAP: Record<string, string> = {
   contact_name: "contact_name",
@@ -201,12 +203,15 @@ const CreatePage = () => {
 
   const filteredLeads = useMemo(() => {
     let result = leads;
-    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID));
+    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID && id !== NOT_SENT_GROUP_ID));
     if (realGroupIds.size > 0) {
       result = result.filter((l) => memberships.some((m) => m.contact_id === l.id && realGroupIds.has(m.group_id)));
     }
     if (filterGroupIds.has(SENT_GROUP_ID)) {
       result = result.filter((l) => (sentCounts.get(l.contact_email.toLowerCase()) ?? 0) > 0);
+    }
+    if (filterGroupIds.has(NOT_SENT_GROUP_ID)) {
+      result = result.filter((l) => (sentCounts.get(l.contact_email.toLowerCase()) ?? 0) === 0);
     }
     if (filterIndustries.size > 0) {
       result = result.filter((l) => l.industry != null && filterIndustries.has(l.industry));
@@ -508,6 +513,10 @@ const CreatePage = () => {
                             <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
                               <input type="checkbox" checked={filterGroupIds.has(SENT_GROUP_ID)} onChange={() => toggleFilterGroup(SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
                               <span className="font-medium text-green-700 dark:text-green-400">Sent</span>
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                              <input type="checkbox" checked={filterGroupIds.has(NOT_SENT_GROUP_ID)} onChange={() => toggleFilterGroup(NOT_SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
+                              <span className="font-medium text-muted-foreground">Ikke sent</span>
                             </label>
                           </div>
                         )}
@@ -896,8 +905,14 @@ const CreatePage = () => {
                 {t("review.body")}
               </p>
               <div
-                className="text-sm text-foreground [&_*]:max-w-full"
-                dangerouslySetInnerHTML={{ __html: generatedEmails[0].body }}
+                className="text-sm text-foreground [&_*]:max-w-full [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(
+                    /<[a-z][\s\S]*>/i.test(generatedEmails[0].body)
+                      ? generatedEmails[0].body
+                      : generatedEmails[0].body.replace(/\n/g, "<br>")
+                  ),
+                }}
               />
               {profile?.email_signature && (
                 <p className="mt-3 text-center text-xs text-muted-foreground">— signatur sendes med i e-post —</p>

@@ -348,7 +348,7 @@ const ReviewPage = () => {
                                   contentEditable
                                   suppressContentEditableWarning
                                   onBlur={(e) => handleBodyBlur(email, e.currentTarget)}
-                                  className="min-h-[200px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary whitespace-pre-wrap"
+                                  className="min-h-[200px] w-full rounded-lg border border-border bg-accent/30 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                                   dangerouslySetInnerHTML={{
                                     __html: DOMPurify.sanitize(
                                       /<[a-z][\s\S]*>/i.test(email.body) ? email.body : email.body.replace(/\n/g, "<br>")
