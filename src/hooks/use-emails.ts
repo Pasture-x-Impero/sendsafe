@@ -77,7 +77,10 @@ export function useSendEmail() {
         body: { email_id: emailId, test_email: testEmail },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
-      if (error) throw error;
+      if (error) {
+        const body = await (error as any).context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? error.message ?? "Sending failed");
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
