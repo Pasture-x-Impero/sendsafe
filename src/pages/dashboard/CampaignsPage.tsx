@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, ArrowRight, Trash2, RotateCcw } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useCampaignDrafts, useDeleteCampaignDraft } from "@/hooks/use-campaign-drafts";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const toneLabels: Record<string, string> = {
@@ -19,9 +22,48 @@ const goalLabels: Record<string, string> = {
 
 const CampaignsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: drafts = [], isLoading } = useCampaignDrafts();
   const deleteDraft = useDeleteCampaignDraft();
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const campaignIds = useMemo(
+    () => drafts.map((d) => d.last_campaign_id).filter((id): id is string => !!id),
+    [drafts]
+  );
+
+  const { data: campaignEmailRows = [] } = useQuery({
+    queryKey: ["campaign-statuses", campaignIds],
+    queryFn: async () => {
+      if (!campaignIds.length || !user) return [];
+      const { data } = await supabase
+        .from("emails")
+        .select("campaign_id, status")
+        .eq("user_id", user.id)
+        .in("campaign_id", campaignIds);
+      return data ?? [];
+    },
+    enabled: !!user && campaignIds.length > 0,
+  });
+
+  const completionMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const campId of campaignIds) {
+      const rows = campaignEmailRows.filter((r) => r.campaign_id === campId);
+      map.set(campId, rows.length > 0 && rows.every((r) => r.status === "sent"));
+    }
+    return map;
+  }, [campaignEmailRows, campaignIds]);
+
+  const activeDrafts = useMemo(
+    () => drafts.filter((d) => !d.last_campaign_id || !completionMap.get(d.last_campaign_id)),
+    [drafts, completionMap]
+  );
+
+  const previousCampaigns = useMemo(
+    () => drafts.filter((d) => d.last_campaign_id && completionMap.get(d.last_campaign_id) === true),
+    [drafts, completionMap]
+  );
 
   const handleNewCampaign = () => {
     navigate("/dashboard/create");
@@ -39,6 +81,69 @@ const CampaignsPage = () => {
       setConfirmDeleteId(id);
       setTimeout(() => setConfirmDeleteId(null), 3000);
     }
+  };
+
+  const renderDraftRow = (draft: (typeof drafts)[0], isPrevious: boolean) => {
+    const updated = new Date(draft.updated_at).toLocaleDateString("nb-NO", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    return (
+      <div
+        key={draft.id}
+        className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-primary/30"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {draft.name || "Uten navn"}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {draft.contact_ids.length} mottaker{draft.contact_ids.length !== 1 ? "e" : ""}
+            </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">
+              {toneLabels[draft.tone] ?? draft.tone}
+            </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">
+              {goalLabels[draft.goal] ?? draft.goal}
+            </span>
+            <span className="text-xs text-muted-foreground">·</span>
+            <span className="text-xs text-muted-foreground">Oppdatert {updated}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleDelete(draft.id)}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              confirmDeleteId === draft.id
+                ? "bg-destructive text-destructive-foreground"
+                : "text-muted-foreground hover:text-destructive"
+            }`}
+            title="Slett utkast"
+          >
+            {confirmDeleteId === draft.id ? "Bekreft" : <Trash2 className="h-4 w-4" />}
+          </button>
+          {isPrevious ? (
+            <button
+              onClick={() => navigate(`/dashboard/create?draft=${draft.id}`)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Gjenbruk
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(`/dashboard/create?draft=${draft.id}`)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Fortsett <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -74,60 +179,23 @@ const CampaignsPage = () => {
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {drafts.map((draft) => {
-            const updated = new Date(draft.updated_at).toLocaleDateString("nb-NO", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            });
-            return (
-              <div
-                key={draft.id}
-                className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-primary/30"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {draft.name || "Uten navn"}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      {draft.contact_ids.length} mottaker{draft.contact_ids.length !== 1 ? "e" : ""}
-                    </span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      {toneLabels[draft.tone] ?? draft.tone}
-                    </span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">
-                      {goalLabels[draft.goal] ?? draft.goal}
-                    </span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">Oppdatert {updated}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleDelete(draft.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                      confirmDeleteId === draft.id
-                        ? "bg-destructive text-destructive-foreground"
-                        : "text-muted-foreground hover:text-destructive"
-                    }`}
-                    title="Slett utkast"
-                  >
-                    {confirmDeleteId === draft.id ? "Bekreft" : <Trash2 className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => navigate(`/dashboard/create?draft=${draft.id}`)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    Fortsett <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+        <div className="space-y-6">
+          {activeDrafts.length > 0 && (
+            <div className="space-y-3">
+              {activeDrafts.map((draft) => renderDraftRow(draft, false))}
+            </div>
+          )}
+
+          {previousCampaigns.length > 0 && (
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Tidligere kampanjer
+              </h2>
+              <div className="space-y-3">
+                {previousCampaigns.map((draft) => renderDraftRow(draft, true))}
               </div>
-            );
-          })}
+            </div>
+          )}
         </div>
       )}
     </div>

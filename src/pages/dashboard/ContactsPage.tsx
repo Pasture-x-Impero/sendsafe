@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Wand2 } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
@@ -21,9 +22,11 @@ type ConflictItem = { incoming: PendingRow; existing: Lead };
 const emptyManualRow = (): ManualRow => ({ company: "", contact_email: "", contact_name: "", domain: "", industry: "", employee_count: "", groupId: "" });
 
 const SENT_GROUP_ID = "__sent__";
+const NOT_SENT_GROUP_ID = "__not_sent__";
 
 const ContactsPage = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const { data: leads = [], isLoading } = useLeads();
   const importLeads = useImportLeads();
   const updateLead = useUpdateLead();
@@ -92,6 +95,9 @@ const ContactsPage = () => {
     }
     if (filterGroupIds.has(SENT_GROUP_ID)) {
       result = result.filter((lead) => (sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) > 0);
+    }
+    if (filterGroupIds.has(NOT_SENT_GROUP_ID)) {
+      result = result.filter((lead) => (sentCounts.get(lead.contact_email.toLowerCase()) ?? 0) === 0);
     }
     if (filterIndustries.size > 0) {
       result = result.filter((lead) => lead.industry != null && filterIndustries.has(lead.industry));
@@ -665,7 +671,7 @@ const ContactsPage = () => {
       {/* Toolbar: filters, groups, export */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {/* Group checkbox filter */}
-        {(groups.length > 0 || sentCounts.size > 0) && (
+        {(groups.length > 0 || true) && (
           <div ref={groupFilterRef} className="relative">
             <button onClick={() => { setShowGroupFilter((v) => !v); setShowIndustryFilter(false); }} className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${filterGroupIds.size > 0 ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-foreground hover:bg-accent"}`}>
               {t("contacts.col.groups")}
@@ -674,14 +680,16 @@ const ContactsPage = () => {
             </button>
             {showGroupFilter && (
               <div className="absolute left-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-border bg-card p-2 shadow-lg">
-                {sentCounts.size > 0 && (
-                  <div className="mb-1 border-b border-border pb-1">
-                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
-                      <input type="checkbox" checked={filterGroupIds.has(SENT_GROUP_ID)} onChange={() => toggleFilterGroup(SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
-                      <span className="font-medium text-green-700 dark:text-green-400">Sent</span>
-                    </label>
-                  </div>
-                )}
+                <div className="mb-1 border-b border-border pb-1">
+                  <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                    <input type="checkbox" checked={filterGroupIds.has(SENT_GROUP_ID)} onChange={() => toggleFilterGroup(SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
+                    <span className="font-medium text-green-700 dark:text-green-400">Sent</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent">
+                    <input type="checkbox" checked={filterGroupIds.has(NOT_SENT_GROUP_ID)} onChange={() => toggleFilterGroup(NOT_SENT_GROUP_ID)} className="h-4 w-4 rounded border-border accent-primary" />
+                    <span className="font-medium text-muted-foreground">Ikke sent</span>
+                  </label>
+                </div>
                 {groups.map((g) => (
                   <div key={g.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-accent">
                     <label className="flex flex-1 cursor-pointer items-center gap-2">
@@ -767,6 +775,15 @@ const ContactsPage = () => {
               title={t("contacts.fixDesc")}
             >
               <Wand2 className="h-3.5 w-3.5" /> {updateLead.isPending ? t("contacts.fixing") : t("contacts.fix")}
+            </button>
+            <button
+              onClick={() => {
+                const ids = Array.from(selectedIds).join(",");
+                navigate(`/dashboard/create?contacts=${ids}`);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Ny kampanje
             </button>
           </>
         )}

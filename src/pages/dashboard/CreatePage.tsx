@@ -106,6 +106,20 @@ const CreatePage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Read pre-selected contacts from ?contacts= param (from ContactsPage shortcut)
+  const contactsParam = searchParams.get("contacts");
+  const contactsParamApplied = useRef(false);
+  useEffect(() => {
+    if (draftId || contactsParamApplied.current || !contactsParam) return;
+    const ids = contactsParam.split(",").filter(Boolean);
+    if (ids.length > 0) {
+      contactsParamApplied.current = true;
+      setSelectedIds(new Set(ids));
+      setStep(1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Draft: load state from URL param on first render
   const draftInitialized = useRef(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -903,6 +917,9 @@ const CreatePage = () => {
                 setCommitting(true);
                 try {
                   await commitEmails.mutateAsync(generatedEmails);
+                  if (draftId && generatedEmails[0]?.campaign_id) {
+                    updateDraft.mutate({ id: draftId, last_campaign_id: generatedEmails[0].campaign_id });
+                  }
                   navigate("/dashboard/review");
                 } catch (e) {
                   toast.error((e as Error).message ?? "Kunne ikke lagre e-poster");

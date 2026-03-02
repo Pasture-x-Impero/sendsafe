@@ -76,6 +76,7 @@ export interface CampaignDraft {
   language: string;
   template_subject: string;
   template_body: string;
+  last_campaign_id: string | null;
   created_at: string;
   updated_at: string;
 }
