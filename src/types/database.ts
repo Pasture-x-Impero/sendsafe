@@ -46,6 +46,7 @@ export interface Email {
   campaign_id: string | null;
   campaign_name: string | null;
   generation_mode: "ai" | "standard" | null;
+  ai_credits_used: number;
   sent_at: string | null;
   created_at: string;
   updated_at: string;

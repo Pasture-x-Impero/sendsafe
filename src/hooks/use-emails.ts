@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Email } from "@/types/database";
+import type { GeneratedEmailRow } from "@/hooks/use-generate-emails";
 
 export function useEmails(statusFilter: string | string[]) {
   const { user } = useAuth();
@@ -132,6 +133,24 @@ export function useSentEmailCounts() {
       return counts;
     },
     enabled: !!user,
+  });
+}
+
+export function useCommitEmails() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (emailRows: GeneratedEmailRow[]) => {
+      const { data, error } = await supabase
+        .from("emails")
+        .insert(emailRows)
+        .select();
+      if (error) throw error;
+      return data as Email[];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+    },
   });
 }
 

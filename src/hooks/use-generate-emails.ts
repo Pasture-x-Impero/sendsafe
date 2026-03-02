@@ -1,8 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { supabase, SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from "@/integrations/supabase/client";
 import type { Email } from "@/types/database";
 
 export type CreateMode = "hybrid";
+
+export type GeneratedEmailRow = Omit<Email, "id" | "created_at" | "updated_at">;
 
 interface GenerateEmailsInput {
   contactIds: string[];
@@ -16,8 +18,6 @@ interface GenerateEmailsInput {
 }
 
 export function useGenerateEmails() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ contactIds, campaignName, tone, goal, language, templateSubject, templateBody }: GenerateEmailsInput) => {
       const campaignId = crypto.randomUUID();
@@ -53,10 +53,7 @@ export function useGenerateEmails() {
       const data = await response.json();
       if (data?.error) throw new Error(data.error);
 
-      return data.emails as Email[];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["emails"] });
+      return data.emails as GeneratedEmailRow[];
     },
   });
 }

@@ -185,6 +185,13 @@ Deno.serve(async (req) => {
       return err("Missing required fields");
     }
 
+    // Count brackets in template to determine credits per email
+    const subjectBrackets = (template_subject.match(/\[([^\]]+)\]/g) ?? []).length;
+    const bodyBrackets = (template_body.match(/\[([^\]]+)\]/g) ?? []).length;
+    const bracketCount = subjectBrackets + bodyBrackets;
+    const creditsPerEmail = bracketCount > 0 ? Math.max(0.1, bracketCount * 0.1) : 0;
+    const totalCreditsNeeded = creditsPerEmail * contact_ids.length;
+
     // Check AI credit limit
     const { data: profile } = await supabase
       .from("profiles")
@@ -201,12 +208,14 @@ Deno.serve(async (req) => {
       1
     ).toISOString();
 
-    const { count: aiEmailsUsed } = await supabase
+    const { data: creditsData } = await supabase
       .from("emails")
-      .select("*", { count: "exact", head: true })
+      .select("ai_credits_used")
       .eq("user_id", user.id)
       .in("generation_mode", ["ai", "hybrid"])
       .gte("created_at", startOfMonth);
+
+    const sumCreditsUsed = (creditsData ?? []).reduce((s, r) => s + (r.ai_credits_used ?? 0), 0);
 
     const { count: enrichmentsUsed } = await supabase
       .from("leads")
@@ -215,13 +224,13 @@ Deno.serve(async (req) => {
       .not("enriched_at", "is", null)
       .gte("enriched_at", startOfMonth);
 
-    const remaining = aiLimit - ((aiEmailsUsed ?? 0) + (enrichmentsUsed ?? 0));
+    const remaining = aiLimit - (sumCreditsUsed + (enrichmentsUsed ?? 0));
 
-    if (contact_ids.length > remaining) {
+    if (totalCreditsNeeded > remaining) {
       return err(
         remaining <= 0
           ? "Monthly AI credit limit reached. Upgrade your plan for more AI credits."
-          : `Only ${remaining} AI credits remaining this month. Select fewer contacts or upgrade your plan.`,
+          : `Only ${remaining.toFixed(1)} AI credits remaining this month. Select fewer contacts or upgrade your plan.`,
         403
       );
     }
@@ -281,17 +290,11 @@ Deno.serve(async (req) => {
         campaign_id,
         campaign_name,
         generation_mode: "hybrid",
+        ai_credits_used: creditsPerEmail,
       });
     }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from("emails")
-      .insert(emailRows)
-      .select();
-
-    if (insertError) throw insertError;
-
-    return ok({ emails: inserted });
+    return ok({ emails: emailRows });
   } catch (e) {
     return err((e as Error).message, 500);
   }

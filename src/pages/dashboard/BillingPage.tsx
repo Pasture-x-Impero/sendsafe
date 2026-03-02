@@ -37,19 +37,20 @@ const BillingPage = () => {
     queryKey: ["usage-ai", user?.id, startOfMonth],
     queryFn: async () => {
       if (!user) return 0;
-      const { count: aiEmails } = await supabase
+      const { data: aiEmailData } = await supabase
         .from("emails")
-        .select("*", { count: "exact", head: true })
+        .select("ai_credits_used")
         .eq("user_id", user.id)
-        .eq("generation_mode", "ai")
+        .in("generation_mode", ["ai", "hybrid"])
         .gte("created_at", startOfMonth);
+      const aiEmailCredits = (aiEmailData ?? []).reduce((s, r) => s + (r.ai_credits_used ?? 0), 0);
       const { count: enrichments } = await supabase
         .from("leads")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .not("enriched_at", "is", null)
         .gte("enriched_at", startOfMonth);
-      return (aiEmails ?? 0) + (enrichments ?? 0);
+      return aiEmailCredits + (enrichments ?? 0);
     },
     enabled: !!user,
   });
@@ -109,7 +110,7 @@ const BillingPage = () => {
             <div className="rounded-lg border border-border bg-accent/20 p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-foreground">{t("settings.plan.aiCredits")}</span>
-                <span className="text-muted-foreground">{plan === "free" ? "—" : `${aiUsed} / ${PLAN_AI_LIMITS[plan]}`}</span>
+                <span className="text-muted-foreground">{plan === "free" ? "—" : `${Number(aiUsed).toFixed(1)} / ${PLAN_AI_LIMITS[plan]}`}</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-accent">
                 {plan !== "free" && (
@@ -120,7 +121,7 @@ const BillingPage = () => {
                 )}
               </div>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                {plan === "free" ? t("plan.aiDisabled") : `${Math.max(0, PLAN_AI_LIMITS[plan] - aiUsed)} ${t("plan.aiCreditsRemaining")}`}
+                {plan === "free" ? t("plan.aiDisabled") : `${Math.max(0, PLAN_AI_LIMITS[plan] - aiUsed).toFixed(1)} ${t("plan.aiCreditsRemaining")}`}
               </p>
             </div>
           </div>

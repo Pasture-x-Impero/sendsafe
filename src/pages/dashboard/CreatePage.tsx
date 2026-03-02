@@ -6,11 +6,10 @@ import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads } from "@/hooks/use-leads";
 import { useProfile } from "@/hooks/use-profile";
 import { useContactGroups, useGroupMemberships } from "@/hooks/use-contact-groups";
-import { useGenerateEmails, type CreateMode } from "@/hooks/use-generate-emails";
+import { useGenerateEmails, type CreateMode, type GeneratedEmailRow } from "@/hooks/use-generate-emails";
 import { useEmailTemplates, useCreateEmailTemplate, useDeleteEmailTemplate } from "@/hooks/use-email-templates";
-import { useSentEmailCounts } from "@/hooks/use-emails";
+import { useSentEmailCounts, useCommitEmails } from "@/hooks/use-emails";
 import { useCampaignDrafts, useCreateCampaignDraft, useUpdateCampaignDraft } from "@/hooks/use-campaign-drafts";
-import type { Email } from "@/types/database";
 import { toast } from "sonner";
 import RichEmailEditor from "@/components/RichEmailEditor";
 
@@ -58,6 +57,7 @@ const CreatePage = () => {
   const { data: groups = [] } = useContactGroups();
   const { data: memberships = [] } = useGroupMemberships();
   const generateEmails = useGenerateEmails();
+  const commitEmails = useCommitEmails();
   const { data: templates = [] } = useEmailTemplates();
   const { data: sentCounts = new Map() } = useSentEmailCounts();
   const createTemplate = useCreateEmailTemplate();
@@ -87,7 +87,8 @@ const CreatePage = () => {
   const [tone, setTone] = useState<string>(profile?.tone || "professional");
   const [goal, setGoal] = useState<string>(profile?.goal || "sales");
   const [campaignLanguage, setCampaignLanguage] = useState("no");
-  const [generatedEmails, setGeneratedEmails] = useState<Email[]>([]);
+  const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmailRow[]>([]);
+  const [committing, setCommitting] = useState(false);
 
   // Sync tone and goal from profile once loaded
   useEffect(() => {
@@ -898,10 +899,21 @@ const CreatePage = () => {
               <ArrowLeft className="h-4 w-4" /> {t("create.back")}
             </button>
             <button
-              onClick={() => navigate("/dashboard/review")}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              onClick={async () => {
+                setCommitting(true);
+                try {
+                  await commitEmails.mutateAsync(generatedEmails);
+                  navigate("/dashboard/review");
+                } catch (e) {
+                  toast.error((e as Error).message ?? "Kunne ikke lagre e-poster");
+                } finally {
+                  setCommitting(false);
+                }
+              }}
+              disabled={committing}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              {t("create.goToReview")} <ArrowRight className="h-4 w-4" />
+              {committing ? "Lagrer…" : t("create.goToReview")} <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         </div>
