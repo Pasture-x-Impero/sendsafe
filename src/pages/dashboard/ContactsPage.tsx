@@ -89,7 +89,7 @@ const ContactsPage = () => {
   // Filter
   const filtered = useMemo(() => {
     let result = leads;
-    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID));
+    const realGroupIds = new Set([...filterGroupIds].filter((id) => id !== SENT_GROUP_ID && id !== NOT_SENT_GROUP_ID));
     if (realGroupIds.size > 0) {
       result = result.filter((lead) => memberships.some((m) => m.contact_id === lead.id && realGroupIds.has(m.group_id)));
     }
