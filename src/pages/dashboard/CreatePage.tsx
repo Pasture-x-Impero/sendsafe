@@ -905,7 +905,12 @@ const CreatePage = () => {
                 {t("review.body")}
               </p>
               <div
-                className="text-sm text-foreground [&_*]:max-w-full [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                className="text-foreground [&_*]:max-w-full [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                style={{
+                  fontFamily: `${(profile?.font_family === "Arial" ? "Aptos" : profile?.font_family) || "Aptos"}, Calibri, Arial, sans-serif`,
+                  fontSize: "14px",
+                  lineHeight: "1.5",
+                }}
                 dangerouslySetInnerHTML={{
                   __html: DOMPurify.sanitize(
                     /<[a-z][\s\S]*>/i.test(generatedEmails[0].body)

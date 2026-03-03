@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       textBody += "\n\n---\n" + textSignature;
     }
 
-    let htmlBody = `<div style="font-family:${fontFamily},Calibri,Arial,sans-serif;font-size:12pt;line-height:1.5;">${bodyContent}${signatureHtml}</div>`;
+    let htmlBody = `<div style="font-family:${fontFamily},Calibri,Arial,sans-serif;font-size:14px;line-height:1.5;">${bodyContent}${signatureHtml}</div>`;
 
     // Free plan: append SendSafe promo line
     if (isFree) {
