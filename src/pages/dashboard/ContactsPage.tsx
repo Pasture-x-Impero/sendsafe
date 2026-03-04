@@ -1,6 +1,12 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Wand2 } from "lucide-react";
+import { Upload, Download, Trash2, Plus, X, Users, Pencil, Check, ChevronUp, ChevronDown, ChevronsUpDown, Wand2, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/i18n/LanguageContext";
 import { useLeads, useImportLeads, useUpdateLead, useDeleteLead } from "@/hooks/use-leads";
 import { useSentEmailCounts } from "@/hooks/use-emails";
@@ -828,26 +834,26 @@ const ContactsPage = () => {
                 <th className="w-9 px-2 py-2">
                   <input type="checkbox" checked={selectedIds.size === sortedLeads.length && sortedLeads.length > 0} onChange={toggleSelectAll} className="h-4 w-4 rounded border-border accent-primary" />
                 </th>
-                <th className="w-[18%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
+                <th className="w-[17%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("company")}>
                   {t("contacts.col.company")}<SortIcon field="company" />
                 </th>
-                <th className="w-[20%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_email")}>
+                <th className="w-[19%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_email")}>
                   {t("contacts.col.email")}<SortIcon field="contact_email" />
                 </th>
-                <th className="w-[14%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_name")}>
+                <th className="w-[13%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("contact_name")}>
                   {t("contacts.col.name")}<SortIcon field="contact_name" />
                 </th>
-                <th className="w-[13%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
+                <th className="w-[12%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("domain")}>
                   {t("contacts.col.domain")}<SortIcon field="domain" />
                 </th>
-                <th className="w-[16%] px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
-                <th className="w-[10%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
+                <th className="w-[15%] px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.groups")}</th>
+                <th className="w-[9%] cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("industry")}>
                   {t("contacts.col.industry")}<SortIcon field="industry" />
                 </th>
                 <th className="w-16 cursor-pointer select-none px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground" onClick={() => toggleSort("employee_count")}>
                   Ansatte<SortIcon field="employee_count" />
                 </th>
-                <th className="w-16 px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
+                <th className="w-12 px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("contacts.col.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -888,18 +894,34 @@ const ContactsPage = () => {
                       <td className="px-2 py-2 text-sm text-muted-foreground">{lead.employee_count ?? "—"}</td>
                     </>
                   )}
-                  <td className="px-2 py-2">
+                  <td className="px-1 py-2">
                     <div className="flex items-center gap-1">
                       {isEditing(lead.id) ? (
                         <>
-                          <button onClick={commitEditRow} className="rounded p-1 text-success transition-colors hover:bg-success/10" title={t("contacts.save")}><Check className="h-4 w-4" /></button>
-                          <button onClick={cancelEditRow} className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground" title={t("contacts.cancel")}><X className="h-4 w-4" /></button>
+                          <button onClick={commitEditRow} className="rounded p-0.5 text-success transition-colors hover:bg-success/10" title={t("contacts.save")}><Check className="h-4 w-4" /></button>
+                          <button onClick={cancelEditRow} className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground" title={t("contacts.cancel")}><X className="h-4 w-4" /></button>
                         </>
                       ) : (
-                        <>
-                          <button onClick={() => startEditRow(lead)} className="rounded p-1 text-muted-foreground transition-colors hover:text-primary" title={t("contacts.edit")}><Pencil className="h-4 w-4" /></button>
-                          <button onClick={() => deleteLead.mutate(lead.id)} className="rounded p-1 text-muted-foreground transition-colors hover:text-destructive" title={t("contacts.delete")}><Trash2 className="h-4 w-4" /></button>
-                        </>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="rounded p-1 text-muted-foreground transition-colors hover:text-foreground">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => startEditRow(lead)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              {t("contacts.edit")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => deleteLead.mutate(lead.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {t("contacts.delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </td>
