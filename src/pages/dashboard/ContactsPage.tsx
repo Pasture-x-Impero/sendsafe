@@ -821,6 +821,16 @@ const ContactsPage = () => {
         </div>
       )}
 
+      {/* Result count */}
+      {!isLoading && leads.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {sortedLeads.length < leads.length
+            ? <><span className="font-medium text-foreground">{sortedLeads.length}</span> av {leads.length} kontakter</>
+            : <><span className="font-medium text-foreground">{leads.length}</span> kontakter</>
+          }
+        </p>
+      )}
+
       {/* Contact table */}
       {isLoading ? (
         <div className="flex justify-center py-12"><div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>
